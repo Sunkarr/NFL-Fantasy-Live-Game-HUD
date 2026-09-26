@@ -165,3 +165,5 @@ sequenceDiagram
 1. **100% freie Sicht auf das Spiel**: Weder Spielzüge, Spielstandsanzeige der US-Sender (Fox/CBS/NBC) noch Grafiken am unteren Bildrand werden verdeckt.
 2. **Kompakt & Vollständig**: Alle 3 Liga-Duelle, Punkte-Verläufe, Spielzeit-Fortschritte und Big-Play-Highlights auf einen Blick in einer einzigen Zeile.
 3. **Multi-Screen & Stream Ready**: Funktioniert direkt im Browser, per OBS oder als transparentes Floating-Fenster über jedem Player.
+
+<!-- Versioning & DMG Packaging Active -->
