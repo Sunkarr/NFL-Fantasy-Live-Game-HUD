@@ -1,0 +1,626 @@
+/* ==============================================================================
+   NFL Fantasy Live Game HUD — Ultra-Slim Top Bar Stylesheet (68px)
+   Broadcast-Grade Live Stream Overlay with Dark Glassmorphism (Flicker-Free)
+   ============================================================================== */
+
+:root {
+  --hud-height: 68px;
+  --bg-hud: rgba(10, 14, 23, 0.88);
+  --bg-hud-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(10, 14, 23, 0.84) 100%);
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-card-hover: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-highlight: rgba(255, 255, 255, 0.25);
+  
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-dim: #64748b;
+  
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+  font-family: var(--font-family);
+  color: var(--color-text-main);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ==========================================================================
+   Top Bar Container (Full Screen Width, 68px Fixed Height, Translucent Glass)
+   ========================================================================== */
+#hud-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  height: var(--hud-height);
+  background: var(--bg-hud-gradient);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(8px, 1.2vw, 20px);
+  gap: clamp(8px, 1vw, 16px);
+  z-index: 2147483647;
+  pointer-events: auto;
+  transform: translateZ(0);
+  isolation: isolate;
+  contain: layout paint;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Week Tag & Audio Controls (Left Badge Area) */
+.hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.week-tag {
+  font-size: clamp(10px, 0.8vw, 12px);
+  font-weight: 800;
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px clamp(8px, 0.8vw, 12px);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Sound Toggle Button */
+.sound-toggle-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--color-text-main);
+  border-radius: 6px;
+  height: 28px;
+  width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  outline: none;
+}
+
+.sound-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.38);
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+.sound-toggle-btn:active {
+  transform: scale(0.92);
+}
+
+.sound-toggle-btn.is-muted {
+  opacity: 0.65;
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.sound-toggle-btn.is-muted:hover {
+  opacity: 1;
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+}
+
+/* ==========================================================================
+   Matchups Section (~70-75% Width)
+   ========================================================================== */
+.matchups-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  height: 100%;
+  gap: clamp(6px, 0.9vw, 14px);
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 1. Step-by-Step Shift Mode */
+.matchups-container.step-mode {
+  overflow: hidden;
+}
+
+.step-track {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 0.9vw, 14px);
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.step-track.sliding {
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.matchup-card.step-card {
+  flex: 0 0 calc((100% - 2 * clamp(6px, 0.9vw, 14px)) / 3);
+  width: calc((100% - 2 * clamp(6px, 0.9vw, 14px)) / 3);
+  min-width: 0;
+}
+
+/* 2. Ticker / Continuous Rolling Band Mode */
+.matchups-container.ticker-mode {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent 0%, black 1%, black 99%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 1%, black 99%, transparent 100%);
+}
+
+.ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  will-change: transform;
+}
+
+.matchup-card.ticker-card {
+  flex: 0 0 340px;
+  width: 340px;
+  min-width: 340px;
+}
+
+/* Matchup Card Structure */
+.matchup-card {
+  flex: 1;
+  height: 52px;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px clamp(8px, 0.8vw, 12px) 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.matchup-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-highlight);
+}
+
+/* Teams & Scores Row */
+.matchup-teams-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex: 1;
+}
+
+/* Team Avatar with Vibrant Glow Border */
+.team-avatar {
+  width: clamp(24px, 1.8vw, 30px);
+  height: clamp(24px, 1.8vw, 30px);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-subtle);
+  flex-shrink: 0;
+  background: #1e293b;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Center Scores */
+.matchup-center-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 0.5vw, 8px);
+  flex: 1;
+  min-width: 0;
+}
+
+.team-score {
+  font-family: var(--font-mono);
+  font-size: clamp(12px, 1vw, 15px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.team-score.leading {
+  color: #38bdf8;
+}
+
+.score-flash {
+  animation: flash-score 1.2s ease;
+}
+
+.vs-divider {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+  padding: 0 1px;
+}
+
+/* Progress Bar with Glowing Accent Lines */
+.score-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  display: flex;
+  overflow: visible;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.score-bar-left {
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.score-bar-right {
+  height: 100%;
+  border-radius: 0 2px 2px 0;
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+/* ==========================================================================
+   Highlight / Spotlight Pill (Dynamic Team Colors or Gray for FA)
+   ========================================================================== */
+.highlight-queue-container {
+  width: clamp(260px, 24vw, 360px);
+  height: 52px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.spotlight-pill {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(8px, 0.8vw, 14px);
+  gap: clamp(6px, 0.8vw, 10px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Prominent Live Highlight Entrance & Jiggle Animation */
+.spotlight-pill.live-highlight {
+  animation: highlight-entrance-jiggle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both,
+             highlight-glow-flare 1.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  border-width: 1.5px !important;
+  background: var(--bg-card) !important;
+  overflow: hidden;
+  z-index: 10;
+  position: absolute;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.25s ease, box-shadow 0.35s ease;
+}
+
+.spotlight-pill.live-highlight.jiggling {
+  animation: highlight-jiggle-burst 0.75s cubic-bezier(0.22, 1, 0.36, 1) both,
+             highlight-glow-flare 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Metallic Light Sheen Sweep Across the Highlight Pill */
+.spotlight-pill.live-highlight::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -100%;
+  width: 40%;
+  height: 220%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: highlight-sheen-sweep 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+}
+
+.spotlight-avatar-wrap {
+  position: relative;
+  width: clamp(28px, 2.2vw, 34px);
+  height: clamp(28px, 2.2vw, 34px);
+  flex-shrink: 0;
+}
+
+.spotlight-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #1e293b;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.spotlight-pos-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  line-height: 1;
+}
+
+.spotlight-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.spotlight-top-tag {
+  font-size: clamp(8.5px, 0.7vw, 10px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.flame-icon {
+  display: inline-block;
+  animation: flame-flicker 0.7s infinite alternate ease-in-out;
+}
+
+
+
+.spotlight-player-name {
+  font-size: clamp(11px, 0.9vw, 13px);
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dedicated Queue Counter Slot between Player Info & Score Badge */
+.spotlight-queue-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 58px;
+  height: 100%;
+}
+
+/* Queue Count Indicator (Shows how many more highlights are pending) */
+.spotlight-queue-badge {
+  font-size: clamp(8px, 0.65vw, 9.5px);
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  animation: pulse-queue 1.5s infinite ease-in-out;
+  transition: opacity 0.2s ease;
+}
+
+.spotlight-score-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 48px;
+}
+
+.spotlight-pts-value {
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.9vw, 13px);
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: right;
+}
+
+/* Highlight Point Badge Pop Animation - Colored by team accent */
+.spotlight-pill.live-highlight .spotlight-pts-value {
+  animation: score-pts-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1.5px solid var(--hl-accent-color, #00f0ff);
+  background: var(--hl-accent-bg, rgba(0, 240, 255, 0.16));
+  box-shadow: 0 0 12px var(--hl-accent-glow, rgba(0, 240, 255, 0.4));
+}
+
+.pts-sub {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--color-text-dim);
+  margin-left: 2px;
+}
+
+/* Highlight Countdown Timer Line */
+.spotlight-timer-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  animation: timer-shrink 10s linear forwards;
+}
+
+/* HUD Toast Notification Overlay */
+.hud-toast {
+  position: fixed;
+  top: 76px;
+  left: 20px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 999999;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hud-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+/* The Prominent Broadcast Jiggle on Highlight Entrance */
+@keyframes highlight-entrance-jiggle {
+  0% {
+    transform: translateX(50px) scale(0.92);
+    opacity: 0;
+  }
+  25% {
+    transform: translateX(0) scale(1.06) rotate(-2.2deg);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.05) rotate(2.2deg);
+  }
+  55% {
+    transform: scale(1.03) rotate(-1.4deg);
+  }
+  70% {
+    transform: scale(1.015) rotate(0.9deg);
+  }
+  85% {
+    transform: scale(1.005) rotate(-0.4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Re-Jiggle Burst (When new highlight updates while one is already playing) */
+@keyframes highlight-jiggle-burst {
+  0% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(1.07) rotate(-2.5deg); }
+  40% { transform: scale(1.06) rotate(2.5deg); }
+  60% { transform: scale(1.03) rotate(-1.5deg); }
+  80% { transform: scale(1.01) rotate(0.8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Metallic Light Sheen Sweep */
+@keyframes highlight-sheen-sweep {
+  0% { left: -100%; opacity: 0; }
+  30% { opacity: 1; }
+  100% { left: 160%; opacity: 0; }
+}
+
+/* Temporary Neon Outer Flare Glow - Lasts ~1 second during entrance/jiggle then smoothly dissolves into normal mode */
+@keyframes highlight-glow-flare {
+  0% {
+    box-shadow: 0 0 8px var(--hl-glow-color, rgba(0, 240, 255, 0.4)),
+                0 0 16px var(--hl-glow-color, rgba(0, 240, 255, 0.2)),
+                0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+  25% {
+    box-shadow: 0 0 20px var(--hl-glow-color, rgba(0, 240, 255, 0.85)),
+                0 0 38px var(--hl-glow-color, rgba(0, 240, 255, 0.45)),
+                0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+  60% {
+    box-shadow: 0 0 14px var(--hl-glow-color, rgba(0, 240, 255, 0.55)),
+                0 0 26px var(--hl-glow-color, rgba(0, 240, 255, 0.2)),
+                0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 transparent,
+                0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Score Points Pop */
+@keyframes score-pts-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  65% { transform: scale(1.22); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Flame Flicker */
+@keyframes flame-flicker {
+  0% { transform: scale(1) rotate(-4deg); }
+  100% { transform: scale(1.25) rotate(4deg); }
+}
+
+
+
+@keyframes slide-in-right {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pill-fade {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes timer-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes pulse-queue {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; border-color: rgba(255, 255, 255, 0.5); }
+}
+
+@keyframes flash-score {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(1.25); filter: brightness(2.2); color: #00f0ff; }
+  100% { transform: scale(1); filter: brightness(1); }
+}

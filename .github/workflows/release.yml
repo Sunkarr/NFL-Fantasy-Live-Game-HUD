@@ -1,0 +1,50 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit test suite
+        run: |
+          python -m unittest discover tests
+
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg || true
+
+      - name: Build macOS App & Package DMG
+        run: |
+          chmod +x build_mac_app.sh create_dmg.sh
+          ./create_dmg.sh
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: NFL-Fantasy-HUD.dmg
+          generate_release_notes: true
+          draft: false
+          prerelease: false

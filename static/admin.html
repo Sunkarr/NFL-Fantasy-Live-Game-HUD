@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NFL Fantasy HUD — Control & Simulation Center</title>
+  <style>
+    :root {
+      --bg: #080c14;
+      --card-bg: rgba(15, 23, 42, 0.88);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --cyan: #00f0ff;
+      --pink: #ff00aa;
+      --purple: #a855f7;
+      --green: #10b981;
+      --orange: #f59e0b;
+      --font-mono: "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background-color: var(--bg) !important;
+      color: var(--text) !important;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      overflow-y: auto !important;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .title-area h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 0%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-area p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .top-links a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 7px 14px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .top-links a:hover {
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .card.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .card-title-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .btn-active {
+      background: rgba(0, 240, 255, 0.2) !important;
+      border-color: var(--cyan) !important;
+      color: var(--cyan) !important;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+    }
+
+    .btn-cyan {
+      background: rgba(0, 240, 255, 0.12);
+      border-color: rgba(0, 240, 255, 0.35);
+      color: #a5f3fc;
+    }
+    .btn-cyan:hover {
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+
+    .btn-pink {
+      background: rgba(255, 0, 170, 0.12);
+      border-color: rgba(255, 0, 170, 0.35);
+      color: #fbcfe8;
+    }
+    .btn-pink:hover {
+      background: rgba(255, 0, 170, 0.25);
+      box-shadow: 0 0 12px rgba(255, 0, 170, 0.3);
+    }
+
+    .btn-purple {
+      background: rgba(168, 85, 247, 0.12);
+      border-color: rgba(168, 85, 247, 0.35);
+      color: #e9d5ff;
+    }
+    .btn-purple:hover {
+      background: rgba(168, 85, 247, 0.25);
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+    }
+
+    .btn-orange {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+    }
+    .btn-orange:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-badge.muted {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .subtext {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Sandbox Interactive Box */
+    .sandbox-preview-wrapper {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sandbox-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    /* Fixed Isolated Preview Slot (Mimics real HUD .highlight-queue-container) */
+    .preview-hud-slot {
+      position: relative;
+      width: 440px;
+      height: 56px;
+      overflow: visible;
+    }
+
+    /* Pill Styles Scoped to Preview */
+    .preview-pill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1.5px solid var(--cyan);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      transition: border-color 0.25s ease, box-shadow 0.35s ease;
+    }
+
+    .preview-pill.jiggling {
+      animation: preview-jiggle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both,
+                 preview-glow-flare 1.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes preview-glow-flare {
+      0% {
+        box-shadow: 0 0 8px var(--hl-glow-color, rgba(0, 240, 255, 0.4)),
+                    0 0 16px var(--hl-glow-color, rgba(0, 240, 255, 0.2)),
+                    0 4px 16px rgba(0, 0, 0, 0.35);
+      }
+      25% {
+        box-shadow: 0 0 20px var(--hl-glow-color, rgba(0, 240, 255, 0.85)),
+                    0 0 38px var(--hl-glow-color, rgba(0, 240, 255, 0.45)),
+                    0 4px 16px rgba(0, 0, 0, 0.35);
+      }
+      60% {
+        box-shadow: 0 0 14px var(--hl-glow-color, rgba(0, 240, 255, 0.55)),
+                    0 0 26px var(--hl-glow-color, rgba(0, 240, 255, 0.2)),
+                    0 4px 16px rgba(0, 0, 0, 0.35);
+      }
+      100% {
+        box-shadow: 0 0 0 transparent,
+                    0 4px 16px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    /* Metallic Sheen */
+    .preview-pill::after {
+      content: "";
+      position: absolute;
+      top: -60%;
+      left: -100%;
+      width: 50%;
+      height: 220%;
+      background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      transform: rotate(25deg);
+      pointer-events: none;
+      animation: preview-sheen 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    }
+
+    @keyframes preview-jiggle {
+      0% {
+        transform: scale(0.92) rotate(0deg);
+        opacity: 0.7;
+      }
+      20% {
+        transform: scale(1.06) rotate(-2.2deg);
+        opacity: 1;
+      }
+      40% {
+        transform: scale(1.03) rotate(2.2deg);
+      }
+      60% {
+        transform: scale(1.01) rotate(-1.2deg);
+      }
+      80% {
+        transform: scale(1.005) rotate(0.8deg);
+      }
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+      }
+    }
+
+    @keyframes preview-sheen {
+      0% { left: -100%; }
+      100% { left: 240%; }
+    }
+
+    .preview-avatar-wrap {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+    }
+
+    .preview-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #000;
+      border: 2px solid var(--cyan);
+    }
+
+    .preview-pos-badge {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      font-size: 8.5px;
+      font-weight: 900;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: var(--cyan);
+      color: #000;
+      line-height: 1;
+    }
+
+    .preview-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .preview-top-tag {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .flame-icon {
+      animation: flame-pulse 0.8s ease-in-out infinite alternate;
+      display: inline-block;
+    }
+
+    @keyframes flame-pulse {
+      0% { transform: scale(1); filter: drop-shadow(0 0 2px #ff4500); }
+      100% { transform: scale(1.22); filter: drop-shadow(0 0 6px #ff8c00); }
+    }
+
+    .preview-player-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-score-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .preview-pts-value {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 6px;
+      border: 1.5px solid currentColor;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .preview-timer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2.5px;
+      width: 100%;
+      background: var(--cyan);
+      animation: timer-shrink 10s linear forwards;
+    }
+
+    @keyframes timer-shrink {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+
+
+    /* Custom Input Row */
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    input, select {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    }
+
+    /* MVP Grid (6 Columns for 6 Positions) */
+    .mvp-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 860px) {
+      .mvp-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 520px) {
+      .mvp-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .mvp-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .mvp-item:hover {
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .mvp-item-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--cyan);
+      object-fit: cover;
+      background: #000;
+      margin-bottom: 8px;
+    }
+
+    .mvp-item-pos {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--cyan);
+      margin-bottom: 4px;
+    }
+
+    .mvp-item-name {
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+      color: #fff;
+    }
+
+    .mvp-item-pts {
+      font-size: 11px;
+      color: #10b981;
+      font-weight: 800;
+      margin-top: 3px;
+      font-family: var(--font-mono);
+    }
+
+    #log-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--cyan);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    #log-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-area">
+        <h1>🏈 NFL Fantasy Live Game HUD — Control & Simulation Center</h1>
+        <p>Test Highlight Jiggle Physics, Authentic NFL Fanfare Audio, Defense Logos, & Week Simulation</p>
+      </div>
+      <div class="top-links">
+        <a href="/overlay" target="_blank">📺 Open Live HUD Overlay ↗</a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Live Highlight Simulator & Sound Station -->
+      <div class="card full-width" style="border-color: rgba(0, 240, 255, 0.35);">
+        <h2>
+          <div class="card-title-left">
+            <span>💥 Highlight Play & Sound Simulation Station</span>
+            <span id="sound-status-badge" class="status-badge">SOUND ON</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <select id="sound-theme-select" onchange="changeSoundTheme(this.value)" style="padding: 7px 10px; font-size: 12px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--card-border); color: #fff; border-radius: 6px; cursor: pointer;">
+              <option value="fox_horn">🏈 NFL on FOX / Stadium Horn (Default)</option>
+              <option value="redzone">⚡ NFL RedZone Chime Alert</option>
+              <option value="td_siren">🚨 Touchdown Siren & Stadium Horn</option>
+              <option value="brass_fanfare">🎺 Classic Arena Fanfare</option>
+            </select>
+            <button id="btn-toggle-sound" class="btn-active" onclick="toggleSound()">
+              <span id="btn-sound-icon">🔊</span> Toggle Sound (Cmd+M)
+            </button>
+            <button class="btn-orange" onclick="playActiveThemeSound()">
+              ▶ Play Active Sound
+            </button>
+          </div>
+        </h2>
+        <div style="margin-top: 8px; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+          <span style="font-size: 11px; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em;">Audition Themes:</span>
+          <button style="font-size: 12px; padding: 4px 10px;" onclick="previewSoundDirect('fox_horn')">🏈 FOX Stadium Horn</button>
+          <button style="font-size: 12px; padding: 4px 10px;" onclick="previewSoundDirect('redzone')">⚡ RedZone Alert</button>
+          <button style="font-size: 12px; padding: 4px 10px;" onclick="previewSoundDirect('td_siren')">🚨 TD Siren & Horn</button>
+          <button style="font-size: 12px; padding: 4px 10px;" onclick="previewSoundDirect('brass_fanfare')">🎺 Arena Fanfare</button>
+        </div>
+        <p class="subtext">
+          Click any preset button below to trigger prominent highlights with box wobble/jiggle, broadcast fanfare audio, metallic light sheen, and team glow:
+        </p>
+
+        <!-- Preset Simulation Buttons -->
+        <div class="btn-group" style="margin-top: 14px;">
+          <button class="btn-cyan" onclick="triggerPreset('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', 'touchdown', true)">
+            🏈 Josh Allen (+6.4 TD · Electric Cyan)
+          </button>
+          <button class="btn-cyan" onclick="triggerPreset('Bijan Robinson', 5.8, 'auto', 'RB', 'ATL', 'https://sleepercdn.com/content/nfl/players/9226.jpg', 'big_play', false)">
+            ⚡ Bijan Robinson (+5.8 Big Play · Electric Cyan)
+          </button>
+          <button class="btn-pink" onclick="triggerPreset('Brandon Aubrey', 5.0, 'auto', 'K', 'DAL', 'https://sleepercdn.com/content/nfl/players/11533.jpg', 'field_goal', false)">
+            🎯 Brandon Aubrey (+5.0 FG · Neon Fuchsia)
+          </button>
+          <button class="btn-purple" onclick="triggerPreset('Minnesota Vikings', 8.0, 'auto', 'DEF', 'MIN', 'https://sleepercdn.com/images/team_logos/nfl/min.png', 'touchdown', true)">
+            🏈 Vikings Pick-6 (+8.0 TD · Electric Purple)
+          </button>
+          <button class="btn-purple" onclick="triggerPreset('Minnesota Vikings', 4.0, 'auto', 'DEF', 'MIN', 'https://sleepercdn.com/images/team_logos/nfl/min.png', 'def_stop', false)">
+            🛡️ Vikings Turnover (+4.0 Stop · Electric Purple)
+          </button>
+          <button class="btn-pink" style="background: rgba(255, 0, 170, 0.2);" onclick="triggerPreset('Joe Burrow', 12.4, 'auto', 'QB', 'CIN', 'https://sleepercdn.com/content/nfl/players/6770.jpg', 'touchdown', true)">
+            🏈🔥 Monster 75-yd TD (+12.4 TD · Neon Fuchsia)
+          </button>
+          <button class="btn-orange" style="background: rgba(255, 170, 0, 0.2);" onclick="triggerPreset('Malik Nabers', 11.2, 'auto', 'WR', 'NYG', 'https://sleepercdn.com/content/nfl/players/11632.jpg', 'big_play', false)">
+            ⚡🔥 Breakaway 80-yd Run (+11.2 Big Play · Amber Gold)
+          </button>
+          <button class="btn-gray" onclick="triggerPreset('Free Agent WR', 5.4, 'Free Agent', 'WR', 'FA', 'https://sleepercdn.com/content/nfl/players/9488.jpg', 'big_play', false)">
+            ⚡ Free Agent Deep Catch (+5.4 · Slate Gray)
+          </button>
+          <button style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="triggerQueueBurst()">
+            💥 3-Play Queue Burst (Test Queue & Re-Jiggle)
+          </button>
+        </div>
+
+        <!-- Live Sandbox Preview Card -->
+        <div class="sandbox-preview-wrapper">
+          <span class="sandbox-label">Interactive In-Browser Highlight Preview (Jiggle & Sheen Tester)</span>
+          <div class="preview-hud-slot">
+            <div id="sandbox-pill-container" style="width: 100%; height: 100%;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+          <div class="btn-group" style="margin-top: 14px;">
+            <button onclick="retriggerSandboxJiggle()">📳 Re-Trigger Jiggle Animation</button>
+            <button onclick="previewSynthesizedFanfare()">🎼 Test Web Audio Synthesis Fallback</button>
+          </div>
+        </div>
+
+        <!-- Custom Highlight Form -->
+        <div style="margin-top: 18px; border-top: 1px solid var(--card-border); padding-top: 14px;">
+          <span style="font-size: 13px; font-weight: 700;">⚙️ Custom Highlight Play Push:</span>
+          <div class="form-row">
+            <input type="text" id="hl-player-name" value="Josh Allen" placeholder="Player Name" style="width: 140px;" />
+            <select id="hl-pos" style="width: 75px;">
+              <option value="QB">QB</option>
+              <option value="RB">RB</option>
+              <option value="WR">WR</option>
+              <option value="TE">TE</option>
+              <option value="DEF">DEF</option>
+              <option value="K">K</option>
+            </select>
+            <select id="hl-action-type" style="width: 140px;">
+              <option value="touchdown">🏈 Touchdown</option>
+              <option value="big_play">⚡ Big Play</option>
+              <option value="field_goal">🎯 Field Goal</option>
+              <option value="def_stop">🛡️ Def Stop</option>
+            </select>
+            <input type="number" id="hl-points" value="6.8" step="0.5" style="width: 70px;" title="Delta Points" />
+            <select id="hl-team" style="flex: 1; min-width: 190px;">
+              <option value="auto">✨ Auto-Detect Roster Owner</option>
+              <option value="Roster 1">Roster 1 (Electric Cyan)</option>
+              <option value="Roster 2">Roster 2 (Neon Fuchsia)</option>
+              <option value="Roster 3">Roster 3 (Electric Purple)</option>
+              <option value="Roster 4">Roster 4 (Amber Gold)</option>
+              <option value="Roster 5">Roster 5 (Neon Spring Green)</option>
+              <option value="Roster 6">Roster 6 (Cardinal Red)</option>
+              <option value="Free Agent">Free Agent (Slate Gray)</option>
+            </select>
+            <button class="btn-pink" onclick="triggerCustomHighlight()">🔥 Push to Live Overlay</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Week 2 & Position MVPs Live Inspector -->
+      <div class="card full-width">
+        <h2>
+          <div class="card-title-left">
+            <span>⭐ Active Week Position MVPs (Including Defense Logos)</span>
+            <span id="active-week-badge" class="status-badge">WEEK 2</span>
+          </div>
+          <div class="btn-group" style="margin: 0;">
+            <button onclick="setWeek(2)" class="btn-active" id="btn-wk2">📅 Load Week 2 (Test Vikings Logo)</button>
+            <button onclick="setWeek(1)" id="btn-wk1">WK 1</button>
+            <button onclick="setWeek(3)" id="btn-wk3">WK 3</button>
+            <button onclick="setWeek(null)" id="btn-wk-live">🌐 Live NFL Auto</button>
+          </div>
+        </h2>
+        <p class="subtext">
+          Realtime rotation of the 6 highest scoring players of the active week. Notice the <strong>Minnesota Vikings defense logo</strong> below:
+        </p>
+
+        <div class="mvp-grid" id="mvp-container">
+          <!-- Rendered dynamically -->
+          <div style="color: var(--text-dim); padding: 12px; grid-column: 1 / -1; text-align: center;">Loading MVPs...</div>
+        </div>
+      </div>
+
+      <!-- Matchup Layout Modes Card -->
+      <div class="card">
+        <h2>🔀 Multi-Matchup Display Mode</h2>
+        <p class="subtext">How matchups are presented across the top bar (~75% screen width):</p>
+        
+        <div class="btn-group">
+          <button id="mode-auto" class="btn-active" onclick="setDisplaySettings({ mode: 'auto' })">
+            ✨ Auto (≤3 Static, >3 Step)
+          </button>
+          <button id="mode-step" onclick="setDisplaySettings({ mode: 'step' })">
+            🔄 Step-by-Step Conveyor
+          </button>
+          <button id="mode-ticker" onclick="setDisplaySettings({ mode: 'ticker' })">
+            📜 Infinite Rolling Marquee
+          </button>
+        </div>
+
+        <div style="margin-top: 16px; border-top: 1px solid var(--card-border); padding-top: 14px;">
+          <span style="font-size: 13px; font-weight: 600;">⚡ Global Animation Speed:</span>
+          <div class="btn-group" style="margin-top: 8px;">
+            <button id="speed-fast" onclick="setDisplaySettings({ speed: 'fast' })">🐇 Fast (5s)</button>
+            <button id="speed-normal" class="btn-active" onclick="setDisplaySettings({ speed: 'normal' })">⚡ Normal (10s)</button>
+            <button id="speed-slow" onclick="setDisplaySettings({ speed: 'slow' })">🐢 Slow (20s)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- League Size Simulator -->
+      <div class="card">
+        <h2>🎲 Simulated League Size Generator</h2>
+        <p class="subtext">Generate mock matchups for arbitrary league sizes with realistic scores:</p>
+        <div class="btn-group">
+          <button onclick="generateMockLeague(6)">6 Teams (3 Dueling Pairs)</button>
+          <button onclick="generateMockLeague(8)">8 Teams</button>
+          <button onclick="generateMockLeague(10)">10 Teams</button>
+          <button onclick="generateMockLeague(12)">12 Teams</button>
+          <button onclick="generateMockLeague(14)">14 Teams</button>
+          <button onclick="generateMockLeague(16)">16 Teams</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="log-toast"></div>
+
+  <script>
+    let soundEnabled = true;
+    let soundTheme = 'fox_horn';
+    let audioCtx = null;
+
+    const SOUND_FILES = {
+      fox_horn: '/static/sounds/nfl_fox_horn.wav',
+      redzone: '/static/sounds/nfl_redzone_alert.wav',
+      td_siren: '/static/sounds/nfl_touchdown_siren.wav',
+      brass_fanfare: '/static/sounds/nfl_brass_fanfare.wav'
+    };
+
+    function previewSoundDirect(theme) {
+      const url = SOUND_FILES[theme] || SOUND_FILES.fox_horn;
+      try {
+        const audio = new Audio(url);
+        audio.volume = 0.9;
+        audio.play().catch(() => previewSynthesizedFanfare());
+        showToast(`Auditioning: ${theme.replace('_', ' ').toUpperCase()}`);
+      } catch (e) {
+        previewSynthesizedFanfare();
+      }
+    }
+
+    async function changeSoundTheme(theme) {
+      soundTheme = theme;
+      try {
+        await fetch('/api/settings/sound-theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sound_theme: theme })
+        });
+        showToast(`Sound theme set to: ${theme}`);
+        previewSoundDirect(theme);
+      } catch (e) {
+        showToast('Error saving sound theme');
+      }
+    }
+
+    function playActiveThemeSound() {
+      if (!soundEnabled) {
+        showToast('⚠️ Sound is muted. Unmute to hear highlight audio.');
+        return;
+      }
+      previewSoundDirect(soundTheme);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('log-toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    async function toggleSound() {
+      soundEnabled = !soundEnabled;
+      updateSoundUI();
+      try {
+        await fetch('/api/settings/sound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sound_enabled: soundEnabled })
+        });
+        showToast(soundEnabled ? '🔊 Sound FX Enabled' : '🔇 Sound FX Muted');
+      } catch (e) {
+        showToast('Error syncing sound setting');
+      }
+    }
+
+    function updateSoundUI() {
+      const badge = document.getElementById('sound-status-badge');
+      const icon = document.getElementById('btn-sound-icon');
+      const btn = document.getElementById('btn-toggle-sound');
+      if (soundEnabled) {
+        badge.textContent = 'SOUND ON';
+        badge.className = 'status-badge';
+        icon.textContent = '🔊';
+        btn.classList.add('btn-active');
+      } else {
+        badge.textContent = 'SOUND MUTED';
+        badge.className = 'status-badge muted';
+        icon.textContent = '🔇';
+        btn.classList.remove('btn-active');
+      }
+      renderSandboxPill('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', false);
+    }
+
+    function playTestFanfare() {
+      if (!soundEnabled) {
+        showToast('⚠️ Sound is muted. Unmute to hear fanfare.');
+        return;
+      }
+      try {
+        const audio = new Audio('/static/sounds/nfl_highlight.wav');
+        audio.volume = 0.85;
+        audio.play().catch(() => previewSynthesizedFanfare());
+        showToast('🎺 Playing Broadcast Fanfare Audio...');
+      } catch (e) {
+        previewSynthesizedFanfare();
+      }
+    }
+
+    function previewSynthesizedFanfare() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const ctx = audioCtx;
+        const now = ctx.currentTime;
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.4, now);
+        masterGain.connect(ctx.destination);
+
+        // Sub kick impact
+        const kickOsc = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kickOsc.type = 'sine';
+        kickOsc.frequency.setValueAtTime(90, now);
+        kickOsc.frequency.exponentialRampToValueAtTime(25, now + 0.25);
+        kickGain.gain.setValueAtTime(0.5, now);
+        kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        kickOsc.connect(kickGain);
+        kickGain.connect(masterGain);
+        kickOsc.start(now);
+        kickOsc.stop(now + 0.28);
+
+        // Brass sequence: G4 -> C5 -> E5 -> C Major Chord
+        const notes = [
+          { start: 0.00, end: 0.12, freqs: [392.00], vol: 0.75 },
+          { start: 0.12, end: 0.24, freqs: [523.25], vol: 0.80 },
+          { start: 0.24, end: 0.36, freqs: [659.25], vol: 0.85 },
+          { start: 0.36, end: 1.30, freqs: [523.25, 659.25, 783.99, 1046.50], vol: 0.95 }
+        ];
+
+        notes.forEach((n) => {
+          const t0 = now + n.start;
+          const dur = n.end - n.start;
+          const isChord = n.freqs.length > 1;
+
+          n.freqs.forEach((f) => {
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            const noteGain = ctx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(f, t0);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1450, t0);
+
+            const v = (isChord ? 0.08 : 0.18) * n.vol;
+            noteGain.gain.setValueAtTime(0.0001, t0);
+            noteGain.gain.linearRampToValueAtTime(v, t0 + 0.015);
+            noteGain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+            osc.connect(filter);
+            filter.connect(noteGain);
+            noteGain.connect(masterGain);
+
+            osc.start(t0);
+            osc.stop(t0 + dur);
+          });
+        });
+
+        // Chimes
+        const cTime = now + 0.36;
+        [2093, 3136].forEach((freq) => {
+          const chimeOsc = ctx.createOscillator();
+          const chimeGain = ctx.createGain();
+          chimeOsc.type = 'sine';
+          chimeOsc.frequency.setValueAtTime(freq, cTime);
+          chimeGain.gain.setValueAtTime(0.07, cTime);
+          chimeGain.gain.exponentialRampToValueAtTime(0.0001, cTime + 0.55);
+          chimeOsc.connect(chimeGain);
+          chimeGain.connect(masterGain);
+          chimeOsc.start(cTime);
+          chimeOsc.stop(cTime + 0.6);
+        });
+
+        showToast('🎼 Synthesized Zero-Latency Fanfare Audio!');
+      } catch (e) {
+        showToast('Synthesis error: ' + e);
+      }
+    }
+
+    const DEFAULT_PALETTE = [
+      '#00f0ff', '#ff00aa', '#a855f7', '#ffaa00', '#00e676', '#ef4444',
+      '#387aff', '#a3e635', '#ff6b00', '#00f5d4', '#e024c3', '#6366f1'
+    ];
+
+    function getManagerColor(teamName) {
+      if (!teamName || teamName === 'auto') return '#00f0ff';
+      const lower = teamName.toLowerCase().trim();
+      if (lower.includes('free agent') || lower === 'fa' || lower === 'unowned') return '#94a3b8';
+      
+      const rosterMatch = lower.match(/roster\s*(\d+)/);
+      if (rosterMatch) {
+        const idx = parseInt(rosterMatch[1], 10) - 1;
+        return DEFAULT_PALETTE[Math.max(0, idx) % DEFAULT_PALETTE.length];
+      }
+      return '#00f0ff';
+    }
+
+    function triggerTestHighlight() {
+      return triggerPreset('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', 'touchdown', true);
+    }
+
+    function getHighlightHeaderInfo(type, pos, deltaPoints, isTouchdown) {
+      const isTD = isTouchdown || type === 'touchdown';
+      const isOver10 = (deltaPoints || 0) >= 10.0;
+      const flameIcon = isOver10 ? '🔥' : '';
+
+      if (isTD) {
+        return {
+          emoji: '🏈' + flameIcon,
+          label: 'TOUCHDOWN'
+        };
+      } else if (type === 'field_goal' || pos === 'K') {
+        return {
+          emoji: '🎯' + flameIcon,
+          label: 'FIELD GOAL'
+        };
+      } else if (type === 'def_stop' || (pos === 'DEF' && !isTD)) {
+        return {
+          emoji: '🛡️' + flameIcon,
+          label: 'DEF STOP'
+        };
+      } else {
+        return {
+          emoji: '⚡' + flameIcon,
+          label: 'BIG PLAY'
+        };
+      }
+    }
+
+    async function triggerPreset(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, highlightType, isTouchdown) {
+      // NOTE: Do NOT play sound here in the admin UI! Sound is played by the HUD overlay when the highlight displays.
+      try {
+        const resp = await fetch('/api/test/highlight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            player_name: playerName,
+            delta_points: deltaPoints,
+            fantasy_team_name: teamName || 'auto',
+            position: pos,
+            nfl_team: nflTeam,
+            headshot_url: headshotUrl,
+            highlight_type: highlightType,
+            is_touchdown: isTouchdown
+          })
+        });
+        const data = await resp.json();
+        const hl = data.highlight || {};
+
+        renderSandboxPill(
+          hl.player_name || playerName,
+          hl.delta_points || deltaPoints,
+          hl.fantasy_team_name || teamName,
+          hl.position || pos,
+          hl.nfl_team || nflTeam,
+          hl.headshot_url || headshotUrl,
+          hl.color_accent,
+          true,
+          hl.highlight_type || highlightType,
+          hl.is_touchdown !== undefined ? hl.is_touchdown : isTouchdown
+        );
+        showToast(`Highlight sent: ${playerName} (${hl.fantasy_team_name || teamName})`);
+      } catch (e) {
+        showToast('Error sending highlight to overlay');
+      }
+    }
+
+    async function triggerQueueBurst() {
+      showToast('💥 Firing 3 Rapid Highlights to test Queue & Re-Jiggle...');
+      triggerPreset('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', 'touchdown', true);
+      setTimeout(() => {
+        triggerPreset('Joe Burrow', 7.2, 'auto', 'QB', 'CIN', 'https://sleepercdn.com/content/nfl/players/6770.jpg', 'touchdown', true);
+      }, 700);
+      setTimeout(() => {
+        triggerPreset('Minnesota Vikings', 8.0, 'auto', 'DEF', 'MIN', 'https://sleepercdn.com/images/team_logos/nfl/min.png', 'touchdown', true);
+      }, 1400);
+    }
+
+    async function triggerCustomHighlight() {
+      const playerName = document.getElementById('hl-player-name').value || 'Josh Allen';
+      const deltaPoints = parseFloat(document.getElementById('hl-points').value) || 6.8;
+      const pos = document.getElementById('hl-pos').value || 'QB';
+      const teamName = document.getElementById('hl-team').value;
+      const actionType = document.getElementById('hl-action-type').value;
+      const isTD = actionType === 'touchdown';
+
+      triggerPreset(playerName, deltaPoints, teamName, pos, (pos === 'DEF' ? 'MIN' : 'NFL'), null, actionType, isTD);
+    }
+
+    function retriggerSandboxJiggle() {
+      const pill = document.querySelector('.preview-pill');
+      if (pill) {
+        pill.classList.remove('jiggling');
+        void pill.offsetWidth;
+        pill.classList.add('jiggling');
+        showToast('📳 Re-triggered box jiggle animation!');
+      }
+    }
+
+    function formatHighlightDisplayName(name, position, nflTeam) {
+      if (!name) return '';
+      const pos = (position || '').toUpperCase();
+      
+      // For defenses, display only the 3-letter (or 2-3 char) NFL team code
+      if (pos === 'DEF') {
+        if (nflTeam && nflTeam.trim().length > 0) {
+          return nflTeam.trim().toUpperCase();
+        }
+        const upperName = name.trim().toUpperCase();
+        if (upperName.length <= 4) return upperName;
+        const teamMap = {
+          'MINNESOTA VIKINGS': 'MIN', 'BUFFALO BILLS': 'BUF', 'KANSAS CITY CHIEFS': 'KC',
+          'SAN FRANCISCO 49ERS': 'SF', 'DALLAS COWBOYS': 'DAL', 'PHILADELPHIA EAGLES': 'PHI',
+          'BALTIMORE RAVENS': 'BAL', 'DETROIT LIONS': 'DET', 'MIAMI DOLPHINS': 'MIA',
+          'GREEN BAY PACKERS': 'GB', 'HOUSTON TEXANS': 'HOU', 'PITTSBURGH STEELERS': 'PIT',
+          'NEW YORK JETS': 'NYJ', 'NEW YORK GIANTS': 'NYG', 'LOS ANGELES RAMS': 'LAR',
+          'LOS ANGELES CHARGERS': 'LAC', 'SEATTLE SEAHAWKS': 'SEA', 'TAMPA BAY BUCCANEERS': 'TB',
+          'NEW ORLEANS SAINTS': 'NO', 'ATLANTA FALCONS': 'ATL', 'CAROLINA PANTHERS': 'CAR',
+          'CHICAGO BEARS': 'CHI', 'CINCINNATI BENGALS': 'CIN', 'COWBOYS': 'DAL',
+          'CLEVELAND BROWNS': 'CLE', 'DENVER BRONCOS': 'DEN', 'INDIANAPOLIS COLTS': 'IND',
+          'JACKSONVILLE JAGUARS': 'JAX', 'LAS VEGAS RAIDERS': 'LV', 'NEW ENGLAND PATRIOTS': 'NE',
+          'ARIZONA CARDINALS': 'ARI', 'TENNESSEE TITANS': 'TEN', 'WASHINGTON COMMANDERS': 'WAS'
+        };
+        for (const [key, abbr] of Object.entries(teamMap)) {
+          if (upperName.includes(key) || key.includes(upperName)) {
+            return abbr;
+          }
+        }
+        return upperName.replace(/DEFENSE|DEF/i, '').trim().substring(0, 3).toUpperCase();
+      }
+
+      // For players: Jersey name format (First initial. Surname [suffix])
+      const parts = name.trim().split(/\s+/);
+      if (parts.length <= 1) return name;
+
+      const firstName = parts[0];
+      const initial = firstName.charAt(0).toUpperCase() + '.';
+      const surname = parts.slice(1).join(' ');
+
+      return `${initial} ${surname}`;
+    }
+
+    function renderSandboxPill(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, explicitColor, shouldJiggle, highlightType, isTouchdown) {
+      if (typeof explicitColor === 'boolean') {
+        shouldJiggle = explicitColor;
+        explicitColor = null;
+      }
+      const container = document.getElementById('sandbox-pill-container');
+      const header = getHighlightHeaderInfo(highlightType, pos, deltaPoints, isTouchdown);
+      
+      const accentColor = explicitColor || getManagerColor(teamName);
+      
+      const jiggleClass = shouldJiggle ? 'jiggling' : '';
+      const fallbackUrl = (pos === 'DEF' && nflTeam) ? `https://a.espncdn.com/i/teamlogos/nfl/500/${nflTeam.toLowerCase()}.png` : 'https://sleepercdn.com/images/v2/icons/player_default.webp';
+
+      container.innerHTML = `
+        <div class="preview-pill ${jiggleClass}" style="border-color: ${accentColor}; --hl-glow-color: ${accentColor};">
+          <div class="preview-avatar-wrap">
+            <img class="preview-avatar" src="${headshotUrl || 'https://sleepercdn.com/content/nfl/players/4984.jpg'}" alt="${playerName}" style="border-color: ${accentColor}; box-shadow: 0 0 10px ${hexToRgba(accentColor, 0.6)};" onerror="this.src='${fallbackUrl}'" />
+            <span class="preview-pos-badge" style="background: ${accentColor}; color: #000;">${pos}</span>
+          </div>
+
+          <div class="preview-info">
+            <span class="preview-top-tag" style="color: ${accentColor}; font-weight: 800;">
+              ${header.emoji} ${header.label}
+            </span>
+            <span class="preview-player-name">${formatHighlightDisplayName(playerName, pos, nflTeam)}</span>
+          </div>
+
+          <div class="preview-score-badge">
+            <span class="preview-pts-value" style="color: ${accentColor}; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.18)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important;">
+              +${deltaPoints.toFixed(1)} <span style="font-size: 8.5px; color: ${hexToRgba(accentColor, 0.85)};">FPTS</span>
+            </span>
+          </div>
+
+          <div class="preview-timer-bar" style="background: ${accentColor};"></div>
+        </div>
+      `;
+    }
+
+    function hexToRgba(hex, alpha = 1) {
+      let c = hex.replace('#', '');
+      if (c.length === 3) c = c.split('').map(x => x + x).join('');
+      const num = parseInt(c, 16);
+      return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+    }
+
+    async function loadMVPs() {
+      const container = document.getElementById('mvp-container');
+      try {
+        const res = await fetch('/api/state');
+        const state = await res.json();
+        const mvps = state.idle_spotlights || [];
+        if (state.display_settings) {
+          if (typeof state.display_settings.sound_enabled === 'boolean') {
+            soundEnabled = state.display_settings.sound_enabled;
+            updateSoundUI();
+          }
+          if (state.display_settings.sound_theme) {
+            soundTheme = state.display_settings.sound_theme;
+            const themeSel = document.getElementById('sound-theme-select');
+            if (themeSel) themeSel.value = soundTheme;
+          }
+        }
+        
+        const weekTag = document.getElementById('active-week-badge');
+        if (state.week) {
+          weekTag.textContent = `WEEK ${state.week}`;
+          ['wk1', 'wk2', 'wk3', 'wk-live'].forEach(id => {
+            const el = document.getElementById('btn-' + id);
+            if (el) el.classList.remove('btn-active');
+          });
+          const activeBtn = document.getElementById('btn-wk' + state.week);
+          if (activeBtn) activeBtn.classList.add('btn-active');
+        }
+
+        if (mvps.length === 0) {
+          container.innerHTML = '<div style="color: var(--text-dim); padding: 12px; grid-column: 1 / -1; text-align: center;">No MVPs found.</div>';
+          return;
+        }
+
+        container.innerHTML = mvps.map(m => `
+          <div class="mvp-item">
+            <img class="mvp-item-avatar" src="${m.headshot_url}" alt="${m.player_name}" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+            <span class="mvp-item-pos">${m.position}</span>
+            <span class="mvp-item-name" title="${m.player_name}">${m.player_name}</span>
+            <span class="mvp-item-pts">${m.points.toFixed(1)} PTS</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = '<div style="color: #ef4444; padding: 12px; grid-column: 1 / -1; text-align: center;">Error loading MVPs.</div>';
+      }
+    }
+
+    async function setWeek(week) {
+      try {
+        await fetch('/api/settings/week', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ week })
+        });
+        showToast(`Active week set to: ${week ? 'WK ' + week : 'Auto Live'}`);
+        ['wk1', 'wk2', 'wk3', 'wk-live'].forEach(id => {
+          const el = document.getElementById('btn-' + id);
+          if (el) el.classList.remove('btn-active');
+        });
+        const currentBtn = document.getElementById(week ? ('btn-wk' + week) : 'btn-wk-live');
+        if (currentBtn) currentBtn.classList.add('btn-active');
+        setTimeout(loadMVPs, 250);
+      } catch (e) {
+        showToast('Failed to set week');
+      }
+    }
+
+    async function setDisplaySettings(settings) {
+      try {
+        await fetch('/api/settings/display', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings)
+        });
+
+        if (settings.mode) {
+          ['auto', 'step', 'ticker'].forEach(m => {
+            const el = document.getElementById('mode-' + m);
+            if (el) el.classList.toggle('btn-active', m === settings.mode);
+          });
+          showToast(`Mode set to: ${settings.mode}`);
+        }
+
+        if (settings.speed) {
+          ['fast', 'normal', 'slow'].forEach(s => {
+            const el = document.getElementById('speed-' + s);
+            if (el) el.classList.toggle('btn-active', s === settings.speed);
+          });
+          showToast(`Speed set to: ${settings.speed}`);
+        }
+      } catch (e) {
+        showToast('Failed to update display settings');
+      }
+    }
+
+    async function generateMockLeague(teams_count) {
+      try {
+        await fetch('/api/test/mock-league', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teams_count })
+        });
+        showToast(`Generated Mock ${teams_count}-Team League!`);
+      } catch (e) {
+        showToast('Failed to generate mock league');
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSandboxPill('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', '#00f0ff', false, 'touchdown', true);
+      loadMVPs();
+
+      const posSelect = document.getElementById('hl-pos');
+      if (posSelect) {
+        posSelect.addEventListener('change', (e) => {
+          const pos = e.target.value;
+          const actionSelect = document.getElementById('hl-action-type');
+          if (actionSelect) {
+            if (pos === 'K') {
+              actionSelect.value = 'field_goal';
+            } else if (pos === 'DEF') {
+              actionSelect.value = 'def_stop';
+            } else if (actionSelect.value === 'field_goal' || actionSelect.value === 'def_stop') {
+              actionSelect.value = 'touchdown';
+            }
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
