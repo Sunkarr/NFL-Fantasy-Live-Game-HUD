@@ -50,6 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var launchBtn: NSButton!
 
     var selectedScreenIndex: Int = 0
+    var selectedScreenName: String? = nil
     var retryCount: Int = 0
     var isDebugMode: Bool = false
     var isSoundEnabled: Bool = true
@@ -136,12 +137,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
     }
 
+    let hudBarHeight: CGFloat = 78.0
+
+    func getTopBarRect(for screen: NSScreen) -> NSRect {
+        let frame = screen.frame
+        return NSRect(
+            x: frame.minX,
+            y: frame.maxY - hudBarHeight,
+            width: frame.width,
+            height: hudBarHeight
+        )
+    }
+
     func startKeepFrontTimer() {
+        // Periodic 2.0s orderFront timer disabled to eliminate AirPlay micro-stutters and dropped frames.
+        // HUD stays frontmost event-driven via .screenSaver window level and spaceDidChangeNotification.
         keepFrontTimer?.invalidate()
-        keepFrontTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            guard let window = self?.hudWindow, window.isVisible else { return }
-            window.orderFrontRegardless()
-        }
+        keepFrontTimer = nil
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -160,7 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         menu.addItem(NSMenuItem(title: "⚙️ Setup & Settings", action: #selector(showSetupDialog), keyEquivalent: "s"))
         menu.addItem(NSMenuItem(title: "🔄 Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
         menu.addItem(NSMenuItem(title: "🏈 Toggle HUD Visibility", action: #selector(toggleHUD), keyEquivalent: "h"))
-        menu.addItem(NSMenuItem(title: isDebugMode ? "🐞 Debug Mode: ON (Clickable)" : "🐞 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d"))
+        menu.addItem(NSMenuItem(title: isDebugMode ? "🪲 Debug Mode: ON (Clickable)" : "🪲 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d"))
         menu.addItem(NSMenuItem(title: "📋 View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
         menu.addItem(NSMenuItem(title: "🔄 Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
         menu.addItem(NSMenuItem.separator())
@@ -233,7 +245,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         menu.addItem(NSMenuItem(title: "🔄 Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
         menu.addItem(NSMenuItem(title: "🏈 Toggle HUD Visibility (Cmd+H)", action: #selector(toggleHUD), keyEquivalent: "h"))
         
-        let debugItem = NSMenuItem(title: isDebugMode ? "🐞 Debug Mode: ON (Clickable)" : "🐞 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d")
+        let debugItem = NSMenuItem(title: isDebugMode ? "🪲 Debug Mode: ON (Clickable)" : "🪲 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d")
         menu.addItem(debugItem)
         let soundTitle = isSoundEnabled ? "🔊 Highlight Sound FX: ON (Cmd+M)" : "🔇 Highlight Sound FX: MUTED (Cmd+M)"
         menu.addItem(NSMenuItem(title: soundTitle, action: #selector(toggleSound), keyEquivalent: "m"))
@@ -265,7 +277,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     @objc func onScreenSelectedFromMenu(_ sender: NSMenuItem) {
         selectedScreenIndex = sender.tag
-        writeLogLine("Selected screen index changed to \(selectedScreenIndex)")
+        let screens = NSScreen.screens
+        if selectedScreenIndex < screens.count {
+            selectedScreenName = screens[selectedScreenIndex].localizedName
+        }
+        writeLogLine("Selected screen changed to \(selectedScreenIndex) (\(selectedScreenName ?? ""))")
         repositionHUD()
         buildStatusBarMenu()
     }
@@ -643,11 +659,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         guard let popup = screenPopup else { return }
         popup.removeAllItems()
         let screens = NSScreen.screens
+        var matchIdx = 0
         for (i, screen) in screens.enumerated() {
             let name = screen.localizedName
             let res = "\(Int(screen.frame.width))×\(Int(screen.frame.height))"
             let isMain = (screen == NSScreen.main) ? " (Main)" : ""
             popup.addItem(withTitle: "\(i == 0 ? "💻" : "🖥️") \(name)\(isMain) [\(res)]")
+            if let targetName = selectedScreenName, name == targetName {
+                matchIdx = i
+            }
+        }
+        if selectedScreenName != nil && matchIdx < screens.count {
+            selectedScreenIndex = matchIdx
         }
         if selectedScreenIndex < screens.count {
             popup.selectItem(at: selectedScreenIndex)
@@ -688,6 +711,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         let inputLeagueId = leagueIdField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let leagueId = inputLeagueId.isEmpty ? defaultLeagueID : inputLeagueId
         selectedScreenIndex = screenPopup.indexOfSelectedItem
+        let screens = NSScreen.screens
+        if selectedScreenIndex < screens.count {
+            selectedScreenName = screens[selectedScreenIndex].localizedName
+        }
 
         let modeIndex = modePopup.indexOfSelectedItem
         let modeParam: String
@@ -894,11 +921,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         writeLogLine("Starting HUD overlay window...")
         if hudWindow == nil {
             createHUDWindow()
-        } else {
-            repositionHUD()
-            loadOverlayURL()
-            bringHUDToFront()
         }
+        repositionHUD()
+        loadOverlayURL()
         hudWindow?.makeKeyAndOrderFront(nil)
         hudWindow?.orderFrontRegardless()
         startKeepFrontTimer()
@@ -908,17 +933,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     func createHUDWindow() {
         let screens = NSScreen.screens
         let targetScreen = (selectedScreenIndex < screens.count) ? screens[selectedScreenIndex] : (NSScreen.main ?? screens[0])
-        let screenRect = targetScreen.frame
-        writeLogLine("Creating overlay on screen: \(targetScreen.localizedName), dimensions: \(screenRect)")
+        let windowRect = getTopBarRect(for: targetScreen)
+        writeLogLine("Creating overlay on screen: \(targetScreen.localizedName), topBar: \(windowRect), screenFrame: \(targetScreen.frame)")
 
-        // Use non-activating HUDOverlayPanel to prevent losing focus during fullscreen video
+        // Note: Do not pass screen: targetScreen with global windowRect to NSWindow.init.
+        // AppKit's NSWindow(contentRect:styleMask:backing:defer:screen:) treats contentRect as
+        // screen-relative when screen != nil, which adds screen.frame.origin twice (e.g. 1512 + 1512 = 3024px),
+        // displacing the overlay window off-screen to the right on external displays (Beamer/AirPlay)!
         let window = HUDOverlayPanel(
-            contentRect: screenRect,
+            contentRect: windowRect,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
-            defer: false,
-            screen: targetScreen
+            defer: false
         )
+        window.setFrame(windowRect, display: true, animate: false)
 
         // Float above fullscreen video spaces
         window.isFloatingPanel = true
@@ -944,7 +972,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         config.setValue(false, forKey: "drawsBackground")
         config.mediaTypesRequiringUserActionForPlayback = []
 
-        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: screenRect.width, height: screenRect.height), configuration: config)
+        let wv = WKWebView(frame: NSRect(x: 0, y: 0, width: windowRect.width, height: windowRect.height), configuration: config)
         wv.autoresizingMask = [.width, .height]
         wv.navigationDelegate = self
         wv.setValue(false, forKey: "drawsBackground")
@@ -990,10 +1018,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         guard !screens.isEmpty else { return }
         
         let targetScreen = (selectedScreenIndex < screens.count) ? screens[selectedScreenIndex] : screens[0]
-        let rect = targetScreen.frame
-        writeLogLine("Repositioning HUD to \(targetScreen.localizedName): \(rect)")
+        let windowRect = getTopBarRect(for: targetScreen)
+        writeLogLine("Repositioning HUD to \(targetScreen.localizedName): \(windowRect)")
         
-        window.setFrame(rect, display: true, animate: false)
+        window.setFrame(windowRect, display: true, animate: false)
+        if let wv = webView {
+            wv.frame = NSRect(x: 0, y: 0, width: windowRect.width, height: windowRect.height)
+        }
         bringHUDToFront()
     }
 

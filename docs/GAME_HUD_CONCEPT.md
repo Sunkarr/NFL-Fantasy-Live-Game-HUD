@@ -48,9 +48,27 @@ Wenn du den Stream über eine separate App oder einen beliebigen Video-Player sc
 * Die native Swift App (`NFL Fantasy HUD.app`) öffnet ein rahmenloses, transparentes Floating Panel am oberen Bildschirmrand:
   - **Always-on-Top Floating Panel** (Level `.screenSaver`): Schwebt dauerhaft über jedem Vollbild-Stream (auch über anderen Spaces & Vollbild-Apps).
   - **100% Click-Through**: Maus- und Klick-Events gehen nahtlos durch zum Video-Player darunter (Play/Pause, Scrubbing, Lautstärke).
-  - **Multi-Monitor Support**: Live-Auswahl des Ziel-Bildschirms (z. B. Beamer, externer TV oder MacBook-Display) per Menüleiste.
-  - **Shortcuts & Audio-Steuerung**: **`Cmd+M`** schaltet Highlight-Sound-Effekte um, **`Cmd+H`** blendet das Overlay ein/aus, **`Cmd+S`** öffnet den Setup-Dialog.
+  - **Multi-Monitor & Beamer Support**: Live-Auswahl des Ziel-Bildschirms (z. B. Beamer, externer TV, AirPlay-Display oder MacBook-Display) im Setup-Dialog und jederzeit per Menüleiste (`🖥️ Target Display`).
+  - **Shortcuts & Audio-Steuerung**: **`Cmd+M`** schaltet Highlight-Sound-Effekte um, **`Cmd+H`** blendet das Overlay ein/aus (und dockt es neu an den Monitor an), **`Cmd+S`** öffnet den Setup-Dialog.
   - **Build-Kommando**: `./build_mac_app.sh` kompiliert die native Apple Silicon App direkt und signiert das Bundle ad-hoc.
+
+#### 📐 Technische Vertiefung: Multi-Monitor & AirPlay / Beamer Geometrie
+Beim Betrieb mit externen Displays (wie Beamern oder AirPlay-Empfängern) ordnet macOS Monitore in einem **globalen Koordinatensystem** an:
+* Das Hauptdisplay (MacBook Retina) liegt bei `(x: 0, y: 0, w: 1512, h: 982)`.
+* Das Beamer-/AirPlay-Display liegt rechts daneben mit globalen Koordinaten, z. B. `(x: 1512, y: -98, w: 1920, h: 1080)`.
+* **Behobenes Koordinaten-Phänomen**: Übergibt man bei der Initialisierung von `NSWindow(contentRect:styleMask:backing:defer:screen:)` sowohl globale Koordinaten (`x = 1512`) als auch das Ziel-Screen-Objekt `screen: targetScreen`, interpretiert AppKit das `contentRect` relativ zum Ursprung des Zielmonitors. Die Monitorkoordinate wurde dadurch doppelt addiert (`1512 + 1512 = 3024`), wodurch das Fenster um 1512 Pixel nach rechts ins Aus geschoben wurde und auf dem Beamer nur die ersten ~400 Pixel (`[WK 3]` und das erste Matchup) am rechten Bildschirmrand sichtbar waren.
+* **Architektur-Lösung**: Das Overlay-Panel wird mit globalen AppKit-Koordinaten ohne relatives Screen-Offset initialisiert und via `window.setFrame(windowRect)` exakt auf den Zielmonitor gesetzt. Beim Neuverbinden von AirPlay wird der Bildschirm automatisch anhand seines Namens (`localizedName`) wiedererkannt und die innere WebKit-Viewport-Größe (`webView.frame`) synchron aktualisiert.
+
+#### 🚀 Performance- & AirPlay-Optimierung: Stotterfreies Streaming auf Beamer / Apple TV
+Bei der drahtlosen Übertragung des Bildschirms via **AirPlay** auf einen Beamer oder ein Apple TV kam es zuvor zu wiederkehrenden Mikrorucklern im Videobild. Die Ursachenanalyse und technische Lösung im Detail:
+1. **Reduzierung der Overlay-Fensterfläche um ~93% (78px Top-Band statt 1080px Vollbild)**:
+   - *Problem*: Zuvor spannte die native App ein transparentes 1920×1080 Pixel großes Fenster über den gesamten Bildschirm auf. macOS WindowServer musste dadurch bei jedem einzelnen Frame (60 Hz) alle 2.073.600 Pixel per GPU alpha-blenden, was hardwarebeschleunigtes Direct Scanout und Zero-Copy AirPlay Video-Encoding blockierte.
+   - *Lösung*: Das native AppKit-Fenster und die innere WebKit-View sind nun exakt auf die 78 Pixel des oberen Balkens (`y = screenRect.maxY - 78`, `h = 78`) beschränkt. Die restlichen **~93% des Beamer-Bildschirms** (1002 von 1080 Pixeln) sind vollkommen fensterfrei. macOS encodiert den darunterlaufenden Videostream direkt per Hardware ohne GPU-Compositor-Overhead.
+2. **Eliminierung des zyklischen 2.0s Polling-Timers**:
+   - *Problem*: Ein Hintergrundtimer rief alle 2.0 Sekunden `window.orderFrontRegardless()` auf. Jeder dieser Aufrufe unterbrach den macOS WindowServer-Compositor und erzeugte einen rhythmischen Frame-Drop im AirPlay-Stream.
+   - *Lösung*: Der Timer wurde vollständig entfernt. Das Fenster bleibt rein event-basiert über das Window-Level `.screenSaver` sowie die Observer `activeSpaceDidChangeNotification` und `didActivateApplicationNotification` im Vordergrund – vollkommen ohne Stream-Unterbrechungen.
+3. **In-Bar Toast-Positionierung**:
+   - Toasts und Benachrichtigungen werden direkt innerhalb des 78px Top-Bands gerendert, wodurch keine Elemente außerhalb des optimierten Fensters abgeschnitten werden.
 
 ---
 

@@ -486,22 +486,20 @@ html, body {
   animation: timer-shrink 10s linear forwards;
 }
 
-/* HUD Toast Notification Overlay */
+/* HUD Toast Notification Overlay - Compact Bar Notification (AirPlay Optimized) */
 .hud-toast {
   position: fixed;
-  top: 76px;
+  top: 14px;
   left: 20px;
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
   color: #ffffff;
   padding: 6px 14px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
-  z-index: 999999;
+  z-index: 2147483647;
   pointer-events: none;
   opacity: 0;
   transform: translateY(-8px);
