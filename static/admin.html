@@ -465,19 +465,15 @@
       box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
     }
 
-    /* MVP Grid (6 Columns for 6 Positions) */
+    /* Active Players Grid */
     .mvp-grid {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
       gap: 12px;
-      margin-top: 16px;
-    }
-
-    @media (max-width: 860px) {
-      .mvp-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 520px) {
-      .mvp-grid { grid-template-columns: repeat(2, 1fr); }
+      margin-top: 14px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 4px;
     }
 
     .mvp-item {
@@ -490,12 +486,22 @@
       align-items: center;
       text-align: center;
       transition: all 0.2s ease;
+      position: relative;
     }
 
     .mvp-item:hover {
       border-color: var(--cyan);
       background: rgba(0, 240, 255, 0.06);
       transform: translateY(-2px);
+    }
+
+    .mvp-item.is-bench {
+      opacity: 0.9;
+    }
+
+    .mvp-item-avatar-wrap {
+      position: relative;
+      margin-bottom: 6px;
     }
 
     .mvp-item-avatar {
@@ -505,7 +511,26 @@
       border: 2px solid var(--cyan);
       object-fit: cover;
       background: #000;
-      margin-bottom: 8px;
+    }
+
+    .mvp-item-rank {
+      position: absolute;
+      top: -4px;
+      right: -6px;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+
+    .mvp-item-tags {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 5px;
+      align-items: center;
     }
 
     .mvp-item-pos {
@@ -515,7 +540,27 @@
       border-radius: 4px;
       background: rgba(0, 240, 255, 0.15);
       color: var(--cyan);
-      margin-bottom: 4px;
+    }
+
+    .mvp-item-slot {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .mvp-item-slot.starter {
+      background: rgba(0, 240, 255, 0.15);
+      color: #00f0ff;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+    }
+
+    .mvp-item-slot.bench {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
     }
 
     .mvp-item-name {
@@ -524,15 +569,25 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 120px;
+      max-width: 130px;
       color: #fff;
+    }
+
+    .mvp-item-manager {
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+      margin-top: 2px;
     }
 
     .mvp-item-pts {
       font-size: 11px;
       color: #10b981;
       font-weight: 800;
-      margin-top: 3px;
+      margin-top: 4px;
       font-family: var(--font-mono);
     }
 
@@ -687,27 +742,52 @@
         </div>
       </div>
 
-      <!-- Week 2 & Position MVPs Live Inspector -->
+      <!-- Active Players Overview Live Inspector -->
       <div class="card full-width">
         <h2>
           <div class="card-title-left">
-            <span>⭐ Active Week Position MVPs (Including Defense Logos)</span>
+            <span>👥 Active Players Live Overview (Starters & Bench by Position)</span>
             <span id="active-week-badge" class="status-badge">WEEK 2</span>
           </div>
           <div class="btn-group" style="margin: 0;">
-            <button onclick="setWeek(2)" class="btn-active" id="btn-wk2">📅 Load Week 2 (Test Vikings Logo)</button>
+            <button onclick="setWeek(2)" class="btn-active" id="btn-wk2">📅 Load Week 2</button>
             <button onclick="setWeek(1)" id="btn-wk1">WK 1</button>
             <button onclick="setWeek(3)" id="btn-wk3">WK 3</button>
             <button onclick="setWeek(null)" id="btn-wk-live">🌐 Live NFL Auto</button>
           </div>
         </h2>
         <p class="subtext">
-          Realtime rotation of the 6 highest scoring players of the active week. Notice the <strong>Minnesota Vikings defense logo</strong> below:
+          Realtime overview and rotation through all fantasy-owned active players (excluding 0.0 FPTS), ordered position by position (QB → RB → WR → TE → K → DEF) and sorted by fantasy points descending.
         </p>
+
+        <!-- Position & Roster Slot Filter Bar -->
+        <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; align-items: center;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Position:</span>
+            <div class="btn-group" style="margin: 0;" id="filter-pos-group">
+              <button class="btn-active" onclick="filterMVPs('ALL', null)" id="pos-ALL">ALL</button>
+              <button onclick="filterMVPs('QB', null)" id="pos-QB">QB</button>
+              <button onclick="filterMVPs('RB', null)" id="pos-RB">RB</button>
+              <button onclick="filterMVPs('WR', null)" id="pos-WR">WR</button>
+              <button onclick="filterMVPs('TE', null)" id="pos-TE">TE</button>
+              <button onclick="filterMVPs('K', null)" id="pos-K">K</button>
+              <button onclick="filterMVPs('DEF', null)" id="pos-DEF">DEF</button>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Slot:</span>
+            <div class="btn-group" style="margin: 0;" id="filter-slot-group">
+              <button class="btn-active" onclick="filterMVPs(null, 'ALL')" id="slot-ALL">ALL</button>
+              <button onclick="filterMVPs(null, 'STARTER')" id="slot-STARTER">STARTER</button>
+              <button onclick="filterMVPs(null, 'BENCH')" id="slot-BENCH">BENCH</button>
+            </div>
+          </div>
+        </div>
 
         <div class="mvp-grid" id="mvp-container">
           <!-- Rendered dynamically -->
-          <div style="color: var(--text-dim); padding: 12px; grid-column: 1 / -1; text-align: center;">Loading MVPs...</div>
+          <div style="color: var(--text-dim); padding: 12px; grid-column: 1 / -1; text-align: center;">Loading Active Players...</div>
         </div>
       </div>
 
@@ -1150,6 +1230,70 @@
       return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
     }
 
+    let cachedActivePlayers = [];
+    let currentPosFilter = 'ALL';
+    let currentSlotFilter = 'ALL';
+
+    function filterMVPs(pos, slot) {
+      if (pos !== null) {
+        currentPosFilter = pos;
+        ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'].forEach(p => {
+          const btn = document.getElementById('pos-' + p);
+          if (btn) btn.classList.toggle('btn-active', p === currentPosFilter);
+        });
+      }
+      if (slot !== null) {
+        currentSlotFilter = slot;
+        ['ALL', 'STARTER', 'BENCH'].forEach(s => {
+          const btn = document.getElementById('slot-' + s);
+          if (btn) btn.classList.toggle('btn-active', s === currentSlotFilter);
+        });
+      }
+      renderFilteredMVPs();
+    }
+
+    function renderFilteredMVPs() {
+      const container = document.getElementById('mvp-container');
+      if (!container) return;
+
+      let filtered = cachedActivePlayers.slice();
+      if (currentPosFilter !== 'ALL') {
+        filtered = filtered.filter(p => (p.position || '').toUpperCase() === currentPosFilter);
+      }
+      if (currentSlotFilter === 'STARTER') {
+        filtered = filtered.filter(p => p.is_starter !== false && p.roster_slot !== 'BENCH');
+      } else if (currentSlotFilter === 'BENCH') {
+        filtered = filtered.filter(p => p.is_starter === false || p.roster_slot === 'BENCH');
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-dim); padding: 16px; grid-column: 1 / -1; text-align: center;">No active players matching the selected filters.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(m => {
+        const isStarter = m.is_starter !== false && m.roster_slot !== 'BENCH';
+        const color = m.color_accent || '#00f0ff';
+        const rankText = m.rank ? `#${m.rank}` : '';
+        const mgr = m.manager_name || m.fantasy_team_name || 'Roster';
+        return `
+          <div class="mvp-item ${!isStarter ? 'is-bench' : ''}">
+            <div class="mvp-item-avatar-wrap">
+              <img class="mvp-item-avatar" src="${m.headshot_url}" alt="${m.player_name}" style="border-color: ${color};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+              ${rankText ? `<span class="mvp-item-rank">${rankText}</span>` : ''}
+            </div>
+            <div class="mvp-item-tags">
+              <span class="mvp-item-pos" style="color: ${color}; background: ${hexToRgba(color, 0.15)};">${m.position}</span>
+              <span class="mvp-item-slot ${isStarter ? 'starter' : 'bench'}">${isStarter ? 'START' : 'BENCH'}</span>
+            </div>
+            <span class="mvp-item-name" title="${m.player_name}">${m.player_name}</span>
+            <span class="mvp-item-manager" style="color: ${color};" title="${mgr}">${mgr}</span>
+            <span class="mvp-item-pts">${m.points.toFixed(1)} PTS</span>
+          </div>
+        `;
+      }).join('');
+    }
+
     async function loadMVPs() {
       const container = document.getElementById('mvp-container');
       try {
@@ -1179,21 +1323,10 @@
           if (activeBtn) activeBtn.classList.add('btn-active');
         }
 
-        if (mvps.length === 0) {
-          container.innerHTML = '<div style="color: var(--text-dim); padding: 12px; grid-column: 1 / -1; text-align: center;">No MVPs found.</div>';
-          return;
-        }
-
-        container.innerHTML = mvps.map(m => `
-          <div class="mvp-item">
-            <img class="mvp-item-avatar" src="${m.headshot_url}" alt="${m.player_name}" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
-            <span class="mvp-item-pos">${m.position}</span>
-            <span class="mvp-item-name" title="${m.player_name}">${m.player_name}</span>
-            <span class="mvp-item-pts">${m.points.toFixed(1)} PTS</span>
-          </div>
-        `).join('');
+        cachedActivePlayers = mvps;
+        renderFilteredMVPs();
       } catch (e) {
-        container.innerHTML = '<div style="color: #ef4444; padding: 12px; grid-column: 1 / -1; text-align: center;">Error loading MVPs.</div>';
+        container.innerHTML = '<div style="color: #ef4444; padding: 12px; grid-column: 1 / -1; text-align: center;">Error loading active players.</div>';
       }
     }
 

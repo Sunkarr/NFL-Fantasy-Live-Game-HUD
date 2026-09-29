@@ -40,7 +40,8 @@ class HUDStateEngine:
     """
     Central orchestration engine for NFL Fantasy Live Game HUD.
     Maintains active matchup trees, player points history, delta detections,
-    position MVP spotlight rotation (including Free Agents), and multi-matchup display modes.
+    position-by-position active roster players rotation (starters and bench),
+    and multi-matchup display modes.
     """
 
     def __init__(self, ws_manager: ConnectionManager):
@@ -58,7 +59,7 @@ class HUDStateEngine:
         self.rosters_map: Dict[int, Dict[str, Any]] = {}
 
         # Multi-Matchup Display & Animation Settings
-        # Default: normal (10s cycle for MVPs, Highlights, and Matchup Shifts)
+        # Default: normal (10s cycle for Spotlight, Highlights, and Matchup Shifts)
         self.display_settings = DisplaySettings(
             mode="auto",
             speed="normal",
@@ -209,7 +210,10 @@ class HUDStateEngine:
                 win_probability_a=round(50 + (pts_a - pts_b) * 1.5, 1)
             ))
 
+        # Mock rotation through active players: QB -> RB -> WR -> TE -> K -> DEF
+        # (All active players with FPTS > 0, Starters & Bench, sorted by FPTS descending)
         mock_spotlights = [
+            # --- QBs ---
             IdleSpotlight(
                 player_id="4984",
                 player_name="Josh Allen",
@@ -219,10 +223,62 @@ class HUDStateEngine:
                 manager_name="Cyber Blitz",
                 points=34.6,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4984.jpg",
-                title="WEEK 3 · TOP QB",
+                title="QB #1 · CYBER BLITZ · STARTER",
                 color_accent="#00f0ff",
-                is_free_agent=False
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
             ),
+            IdleSpotlight(
+                player_id="4881",
+                player_name="Lamar Jackson",
+                position="QB",
+                nfl_team="BAL",
+                fantasy_team_name="Neon Titans",
+                manager_name="Neon Titans",
+                points=28.4,
+                headshot_url="https://sleepercdn.com/content/nfl/players/4881.jpg",
+                title="QB #2 · NEON TITANS · STARTER",
+                color_accent="#ff00aa",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=2
+            ),
+            IdleSpotlight(
+                player_id="4046",
+                player_name="Patrick Mahomes",
+                position="QB",
+                nfl_team="KC",
+                fantasy_team_name="Golden Strikers",
+                manager_name="Golden Strikers",
+                points=21.5,
+                headshot_url="https://sleepercdn.com/content/nfl/players/4046.jpg",
+                title="QB #3 · GOLDEN STRIKERS · STARTER",
+                color_accent="#ffaa00",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=3
+            ),
+            IdleSpotlight(
+                player_id="4983",
+                player_name="Baker Mayfield",
+                position="QB",
+                nfl_team="TB",
+                fantasy_team_name="Emerald Vipers",
+                manager_name="Emerald Vipers",
+                points=18.2,
+                headshot_url="https://sleepercdn.com/content/nfl/players/4983.jpg",
+                title="QB #4 · EMERALD VIPERS · BENCH",
+                color_accent="#00e676",
+                is_free_agent=False,
+                is_starter=False,
+                roster_slot="BENCH",
+                rank=4
+            ),
+            # --- RBs ---
             IdleSpotlight(
                 player_id="6813",
                 player_name="Jonathan Taylor",
@@ -232,10 +288,46 @@ class HUDStateEngine:
                 manager_name="Neon Titans",
                 points=29.4,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6813.jpg",
-                title="WEEK 3 · TOP RB",
+                title="RB #1 · NEON TITANS · STARTER",
                 color_accent="#ff00aa",
-                is_free_agent=False
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
             ),
+            IdleSpotlight(
+                player_id="4866",
+                player_name="Saquon Barkley",
+                position="RB",
+                nfl_team="PHI",
+                fantasy_team_name="Cyber Blitz",
+                manager_name="Cyber Blitz",
+                points=26.1,
+                headshot_url="https://sleepercdn.com/content/nfl/players/4866.jpg",
+                title="RB #2 · CYBER BLITZ · STARTER",
+                color_accent="#00f0ff",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=2
+            ),
+            IdleSpotlight(
+                player_id="5892",
+                player_name="David Montgomery",
+                position="RB",
+                nfl_team="DET",
+                fantasy_team_name="Quantum Knights",
+                manager_name="Quantum Knights",
+                points=17.5,
+                headshot_url="https://sleepercdn.com/content/nfl/players/5892.jpg",
+                title="RB #3 · QUANTUM KNIGHTS · BENCH",
+                color_accent="#a855f7",
+                is_free_agent=False,
+                is_starter=False,
+                roster_slot="BENCH",
+                rank=3
+            ),
+            # --- WRs ---
             IdleSpotlight(
                 player_id="6794",
                 player_name="Justin Jefferson",
@@ -245,10 +337,46 @@ class HUDStateEngine:
                 manager_name="Quantum Knights",
                 points=27.2,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6794.jpg",
-                title="WEEK 3 · TOP WR",
+                title="WR #1 · QUANTUM KNIGHTS · STARTER",
                 color_accent="#a855f7",
-                is_free_agent=False
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
             ),
+            IdleSpotlight(
+                player_id="6786",
+                player_name="CeeDee Lamb",
+                position="WR",
+                nfl_team="DAL",
+                fantasy_team_name="Cyber Blitz",
+                manager_name="Cyber Blitz",
+                points=23.4,
+                headshot_url="https://sleepercdn.com/content/nfl/players/6786.jpg",
+                title="WR #2 · CYBER BLITZ · STARTER",
+                color_accent="#00f0ff",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=2
+            ),
+            IdleSpotlight(
+                player_id="11632",
+                player_name="Malik Nabers",
+                position="WR",
+                nfl_team="NYG",
+                fantasy_team_name="Golden Strikers",
+                manager_name="Golden Strikers",
+                points=19.2,
+                headshot_url="https://sleepercdn.com/content/nfl/players/11632.jpg",
+                title="WR #3 · GOLDEN STRIKERS · BENCH",
+                color_accent="#ffaa00",
+                is_free_agent=False,
+                is_starter=False,
+                roster_slot="BENCH",
+                rank=3
+            ),
+            # --- TEs ---
             IdleSpotlight(
                 player_id="1466",
                 player_name="Travis Kelce",
@@ -258,22 +386,94 @@ class HUDStateEngine:
                 manager_name="Golden Strikers",
                 points=19.8,
                 headshot_url="https://sleepercdn.com/content/nfl/players/1466.jpg",
-                title="WEEK 3 · TOP TE",
+                title="TE #1 · GOLDEN STRIKERS · STARTER",
                 color_accent="#ffaa00",
-                is_free_agent=False
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
             ),
             IdleSpotlight(
-                player_id="CAR",
-                player_name="Carolina Panthers",
+                player_id="8130",
+                player_name="Trey McBride",
+                position="TE",
+                nfl_team="ARI",
+                fantasy_team_name="Emerald Vipers",
+                manager_name="Emerald Vipers",
+                points=14.2,
+                headshot_url="https://sleepercdn.com/content/nfl/players/8130.jpg",
+                title="TE #2 · EMERALD VIPERS · BENCH",
+                color_accent="#00e676",
+                is_free_agent=False,
+                is_starter=False,
+                roster_slot="BENCH",
+                rank=2
+            ),
+            # --- Ks ---
+            IdleSpotlight(
+                player_id="11533",
+                player_name="Brandon Aubrey",
+                position="K",
+                nfl_team="DAL",
+                fantasy_team_name="Cyber Blitz",
+                manager_name="Cyber Blitz",
+                points=15.0,
+                headshot_url="https://sleepercdn.com/content/nfl/players/11533.jpg",
+                title="K #1 · CYBER BLITZ · STARTER",
+                color_accent="#00f0ff",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
+            ),
+            IdleSpotlight(
+                player_id="1264",
+                player_name="Justin Tucker",
+                position="K",
+                nfl_team="BAL",
+                fantasy_team_name="Neon Titans",
+                manager_name="Neon Titans",
+                points=9.0,
+                headshot_url="https://sleepercdn.com/content/nfl/players/1264.jpg",
+                title="K #2 · NEON TITANS · STARTER",
+                color_accent="#ff00aa",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=2
+            ),
+            # --- DEFs ---
+            IdleSpotlight(
+                player_id="MIN",
+                player_name="Minnesota Vikings",
                 position="DEF",
-                nfl_team="CAR",
-                fantasy_team_name="FREE AGENT",
-                manager_name="Free Agent",
-                points=26.0,
-                headshot_url="https://sleepercdn.com/images/team_logos/nfl/car.png",
-                title="WEEK 3 · TOP DEF",
-                color_accent=COLOR_FREE_AGENT,
-                is_free_agent=True
+                nfl_team="MIN",
+                fantasy_team_name="Emerald Vipers",
+                manager_name="Emerald Vipers",
+                points=18.0,
+                headshot_url="https://sleepercdn.com/images/team_logos/nfl/min.png",
+                title="DEF #1 · EMERALD VIPERS · STARTER",
+                color_accent="#00e676",
+                is_free_agent=False,
+                is_starter=True,
+                roster_slot="STARTER",
+                rank=1
+            ),
+            IdleSpotlight(
+                player_id="BUF",
+                player_name="Buffalo Bills",
+                position="DEF",
+                nfl_team="BUF",
+                fantasy_team_name="Golden Strikers",
+                manager_name="Golden Strikers",
+                points=11.0,
+                headshot_url="https://sleepercdn.com/images/team_logos/nfl/buf.png",
+                title="DEF #2 · GOLDEN STRIKERS · BENCH",
+                color_accent="#ffaa00",
+                is_free_agent=False,
+                is_starter=False,
+                roster_slot="BENCH",
+                rank=2
             )
         ]
 
@@ -306,7 +506,7 @@ class HUDStateEngine:
             season_type = nfl_state.get("season_type", "regular")
             season = nfl_state.get("season", "2026")
 
-            # 2. Fetch League, Users, Rosters, Matchups, and League-wide NFL Stats (incl. Free Agents)
+            # 2. Fetch League, Users, Rosters, Matchups, and League-wide NFL Stats
             league_info = await self.sleeper.get_league_info()
             scoring_settings = league_info.get("scoring_settings", {})
             users = await self.sleeper.get_league_users()
@@ -333,6 +533,7 @@ class HUDStateEngine:
 
             # Map rosters: roster_id -> user metadata & assigned accent color
             rosters_map: Dict[int, Dict[str, Any]] = {}
+            roster_players_map: Dict[int, List[str]] = {}
             player_to_roster: Dict[str, Dict[str, Any]] = {}
 
             for idx, r in enumerate(rosters):
@@ -372,7 +573,9 @@ class HUDStateEngine:
                 rosters_map[rid] = r_dict
 
                 # Map each rostered player back to their fantasy team
-                for pid in (r.get("players") or []):
+                r_pids = [str(pid) for pid in (r.get("players") or [])]
+                roster_players_map[rid] = r_pids
+                for pid in r_pids:
                     player_to_roster[str(pid)] = r_dict
 
             self.rosters_map = rosters_map
@@ -389,8 +592,9 @@ class HUDStateEngine:
             duration_sec = self.get_speed_seconds()
             new_highlights: List[HighlightEvent] = []
 
-            # Track top fantasy performer for each position across ALL NFL players
-            top_by_position: Dict[str, Dict[str, Any]] = {}
+            # Track active players per position across all fantasy managers (Starters + Bench with FPTS != 0)
+            active_by_position: Dict[str, List[Dict[str, Any]]] = {}
+            pregame_starters_by_pos: Dict[str, List[Dict[str, Any]]] = {}
 
             # Process all matchups
             for mid, m_list in matchup_groups.items():
@@ -408,7 +612,8 @@ class HUDStateEngine:
                     })
 
                     total_points = float(m_entry.get("points") or 0.0)
-                    starters = m_entry.get("starters") or []
+                    starters = [str(s) for s in (m_entry.get("starters") or [])]
+                    starters_set = set(starters)
                     players_pts = m_entry.get("players_points") or {}
 
                     starters_detail: List[PlayerInfo] = []
@@ -416,10 +621,10 @@ class HUDStateEngine:
                     starters_in_progress_count = 0
                     total_progress_sum = 0.0
 
+                    # 1. Process Starters for matchup scorecard & progress
                     for pid in starters:
                         p_info = self.sleeper.get_player_info(str(pid))
                         pts = float(players_pts.get(str(pid), 0.0))
-                        p_stats = (weekly_stats.get(str(pid)) if weekly_stats else None) or (m_entry.get("players_stats") or {}).get(str(pid), {})
                         team_abbr = p_info["team"]
 
                         game_info = self.nfl_tracker.get_game_for_team(team_abbr)
@@ -454,36 +659,66 @@ class HUDStateEngine:
                         )
                         starters_detail.append(player_model)
 
-                        # Check for Position MVP candidate
-                        pos = p_info["position"]
-                        if pos in ["QB", "RB", "WR", "TE", "DEF", "K"]:
-                            current_top = top_by_position.get(pos)
-                            if current_top is None or pts > current_top["points"]:
-                                top_by_position[pos] = {
-                                    "player_id": str(pid),
-                                    "player_name": p_info["name"],
-                                    "position": pos,
-                                    "nfl_team": p_info["team"],
-                                    "fantasy_team_name": r_meta["team_name"],
-                                    "manager_name": r_meta["manager_name"],
-                                    "points": round(pts, 2),
-                                    "headshot_url": p_info["headshot_url"],
-                                    "title": f"WK {current_week} · TOP {pos}",
-                                    "color_accent": r_meta["color_accent"],
-                                    "is_free_agent": False
-                                }
+                    # 2. Process ALL rostered players (starters + bench)
+                    # Gather unique roster pids preserving starters first, then bench
+                    roster_all_pids = [str(p) for p in (m_entry.get("players") or roster_players_map.get(rid, []))]
+                    combined_pids = list(starters)
+                    for pid in roster_all_pids:
+                        if pid not in starters_set:
+                            combined_pids.append(pid)
 
-                        # Delta check for Highlight Queue
+                    for pid in combined_pids:
+                        pts = float(players_pts.get(str(pid), 0.0))
+                        p_info = self.sleeper.get_player_info(str(pid))
+                        pos = p_info.get("position", "FA")
+                        is_starter = (pid in starters_set)
+                        roster_slot = "STARTER" if is_starter else "BENCH"
+                        p_stats = (weekly_stats.get(str(pid)) if weekly_stats else None) or (m_entry.get("players_stats") or {}).get(str(pid), {})
+
+                        # Active players overview: Exclude players that haven't played (fpts == 0)
+                        if round(pts, 2) != 0.0:
+                            active_by_position.setdefault(pos, []).append({
+                                "player_id": str(pid),
+                                "player_name": p_info["name"],
+                                "position": pos,
+                                "nfl_team": p_info["team"],
+                                "fantasy_team_name": r_meta["team_name"],
+                                "manager_name": r_meta["manager_name"],
+                                "points": round(pts, 2),
+                                "headshot_url": p_info["headshot_url"],
+                                "color_accent": r_meta["color_accent"],
+                                "is_free_agent": False,
+                                "is_starter": is_starter,
+                                "roster_slot": roster_slot
+                            })
+
+                        # Collect starting players for pregame fallback (when 0 players in league have scored yet)
+                        if is_starter:
+                            pregame_starters_by_pos.setdefault(pos, []).append({
+                                "player_id": str(pid),
+                                "player_name": p_info["name"],
+                                "position": pos,
+                                "nfl_team": p_info["team"],
+                                "fantasy_team_name": r_meta["team_name"],
+                                "manager_name": r_meta["manager_name"],
+                                "points": round(pts, 2),
+                                "headshot_url": p_info["headshot_url"],
+                                "color_accent": r_meta["color_accent"],
+                                "is_free_agent": False,
+                                "is_starter": True,
+                                "roster_slot": "STARTER"
+                            })
+
+                        # Delta check for Highlight Queue (supports both starters and bench players)
                         if self.is_bootstrapped and not is_initial:
                             prev_pts = self.prev_player_points.get(str(pid), pts)
                             delta = pts - prev_pts
                             if delta >= HIGHLIGHT_THRESHOLD:
-                                logger.info(f"🔥 HIGHLIGHT DETECTED! {p_info['name']} +{delta:.1f} FPTS for {r_meta['manager_name']}")
+                                logger.info(f"🔥 HIGHLIGHT DETECTED! {p_info['name']} ({roster_slot}) +{delta:.1f} FPTS for {r_meta['manager_name']}")
                                 
                                 # Action type classification (Touchdown, Field Goal, Defense Stop, Big Play)
                                 cur_pstats = p_stats or {}
                                 old_pstats = self.prev_player_stats.get(str(pid), {})
-                                pos = p_info["position"]
                                 
                                 td_keys = ["rush_td", "rec_td", "pass_td", "def_td", "td"]
                                 has_td = any(
@@ -493,24 +728,25 @@ class HUDStateEngine:
                                 if not has_td and delta >= 6.0 and pos in ["QB", "RB", "WR", "TE"] and not old_pstats:
                                     has_td = True
 
+                                bench_suffix = " (Bench)" if not is_starter else ""
                                 if has_td:
                                     hl_type = "touchdown"
-                                    desc = f"Touchdown (+{round(delta, 1)} pts)"
+                                    desc = f"Touchdown{bench_suffix} (+{round(delta, 1)} pts)"
                                 elif pos == "K" or any(float(cur_pstats.get(k, 0) or 0) > float(old_pstats.get(k, 0) or 0) for k in ["fgm", "fgm_50p", "fgm_40_49"]):
                                     hl_type = "field_goal"
-                                    desc = f"Field Goal (+{round(delta, 1)} pts)"
+                                    desc = f"Field Goal{bench_suffix} (+{round(delta, 1)} pts)"
                                 elif pos == "DEF":
                                     hl_type = "touchdown" if has_td else "def_stop"
-                                    desc = f"{'Defensive TD' if has_td else 'Defensive Stop'} (+{round(delta, 1)} pts)"
+                                    desc = f"{'Defensive TD' if has_td else 'Defensive Stop'}{bench_suffix} (+{round(delta, 1)} pts)"
                                 else:
                                     hl_type = "big_play"
-                                    desc = f"Big Play (+{round(delta, 1)} pts)"
+                                    desc = f"Big Play{bench_suffix} (+{round(delta, 1)} pts)"
 
                                 highlight = HighlightEvent(
                                     id=str(uuid.uuid4())[:8],
                                     player_id=str(pid),
                                     player_name=p_info["name"],
-                                    position=p_info["position"],
+                                    position=pos,
                                     nfl_team=p_info["team"],
                                     fantasy_team_name=r_meta["team_name"],
                                     manager_name=r_meta["manager_name"],
@@ -582,12 +818,78 @@ class HUDStateEngine:
                         win_probability_a=100.0
                     ))
 
-            # Build list of Position MVPs (ordered: QB, RB, WR, TE, DEF, K) - ONLY players with > 0.0 points
+            # Check if any fantasy-owned player in the league has scored > 0 points yet
+            has_scoring_players = any(len(plist) > 0 for plist in active_by_position.values())
+            is_pregame_mode = not has_scoring_players
+            pool_by_position = active_by_position if has_scoring_players else pregame_starters_by_pos
+
+            # Build list of Active Players ordered position-by-position: QB -> RB -> WR -> TE -> K -> DEF
+            # In live play (has_scoring_players=True), only players with FPTS != 0 are rotated (sorted by FPTS descending with ranks #1, #2...).
+            # In pre-game / upcoming week before games kick off, all starting players rotate (QB -> RB -> WR -> TE -> K -> DEF)
+            # so the HUD displays scheduled starters instead of an empty blank void.
             idle_spotlights: List[IdleSpotlight] = []
-            for pos in ["QB", "RB", "WR", "TE", "DEF", "K"]:
-                cand = top_by_position.get(pos)
-                if cand and cand["points"] > 0.0:
-                    idle_spotlights.append(IdleSpotlight(**cand))
+            pos_order = ["QB", "RB", "WR", "TE", "K", "DEF"]
+
+            for pos in pos_order:
+                pos_players = pool_by_position.get(pos, [])
+                if has_scoring_players:
+                    pos_players.sort(key=lambda p: p["points"], reverse=True)
+                for rank, p in enumerate(pos_players, start=1):
+                    slot_tag = p["roster_slot"]
+                    if is_pregame_mode:
+                        p_title = f"{pos} · {p['manager_name'].upper()} · START"
+                        rank_val = None
+                    else:
+                        p_title = f"{pos} #{rank} · {p['manager_name'].upper()} · {slot_tag}"
+                        rank_val = rank
+
+                    idle_spotlights.append(IdleSpotlight(
+                        player_id=p["player_id"],
+                        player_name=p["player_name"],
+                        position=p["position"],
+                        nfl_team=p["nfl_team"],
+                        fantasy_team_name=p["fantasy_team_name"],
+                        manager_name=p["manager_name"],
+                        points=p["points"],
+                        headshot_url=p["headshot_url"],
+                        title=p_title,
+                        color_accent=p["color_accent"],
+                        is_free_agent=False,
+                        is_starter=p["is_starter"],
+                        roster_slot=p["roster_slot"],
+                        rank=rank_val
+                    ))
+
+            # Include any non-standard positions if present
+            for pos, pos_players in pool_by_position.items():
+                if pos not in pos_order:
+                    if has_scoring_players:
+                        pos_players.sort(key=lambda p: p["points"], reverse=True)
+                    for rank, p in enumerate(pos_players, start=1):
+                        slot_tag = p["roster_slot"]
+                        if is_pregame_mode:
+                            p_title = f"{pos} · {p['manager_name'].upper()} · START"
+                            rank_val = None
+                        else:
+                            p_title = f"{pos} #{rank} · {p['manager_name'].upper()} · {slot_tag}"
+                            rank_val = rank
+
+                        idle_spotlights.append(IdleSpotlight(
+                            player_id=p["player_id"],
+                            player_name=p["player_name"],
+                            position=p["position"],
+                            nfl_team=p["nfl_team"],
+                            fantasy_team_name=p["fantasy_team_name"],
+                            manager_name=p["manager_name"],
+                            points=p["points"],
+                            headshot_url=p["headshot_url"],
+                            title=p_title,
+                            color_accent=p["color_accent"],
+                            is_free_agent=False,
+                            is_starter=p["is_starter"],
+                            roster_slot=p["roster_slot"],
+                            rank=rank_val
+                        ))
 
             # Update Current State (idle_spotlights is empty if no games have started yet)
             self.current_state = HUDState(

@@ -537,7 +537,22 @@ class NFLGameHUD {
     if (!this.idleSpotlights || this.idleSpotlights.length === 0) {
       this.stopIdleSpotlightCycle();
       if (this.dom.highlightContainer) {
-        this.dom.highlightContainer.innerHTML = '';
+        this.dom.highlightContainer.innerHTML = `
+          <div class="spotlight-pill mvp-pill pregame-pill" style="border-color: rgba(255, 255, 255, 0.15); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);">
+            <div class="spotlight-avatar-wrap" style="display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(255,255,255,0.06); border-radius: 50%;">
+              🏈
+            </div>
+            <div class="spotlight-info">
+              <span class="spotlight-top-tag" style="color: var(--color-text-dim); font-weight: 800;">PREGAME</span>
+              <span class="spotlight-player-name" style="color: #cbd5e1; font-size: 13px;">Awaiting Kickoff</span>
+            </div>
+            <div class="spotlight-score-badge">
+              <span class="spotlight-pts-value" style="color: var(--color-text-dim); font-weight: 700;">
+                0.0 <span style="font-size: 9px; color: var(--color-text-dim);">PTS</span>
+              </span>
+            </div>
+          </div>
+        `;
       }
       return;
     }
@@ -749,11 +764,26 @@ class NFLGameHUD {
     if (!this.dom.highlightContainer || !spotlight) return;
 
     const isFA = spotlight.is_free_agent;
+    const isStarter = spotlight.is_starter !== false && spotlight.roster_slot !== 'BENCH';
     const accentColor = spotlight.color_accent || (isFA ? '#94a3b8' : '#00f0ff');
-    const tagText = isFA ? `FREE AGENT · TOP ${spotlight.position}` : (spotlight.title || `TOP ${spotlight.position || 'SCORER'}`);
+    
+    // Choose rank / icon emoji
+    const rankEmoji = spotlight.rank === 1 ? '👑' : (isStarter ? '⭐' : '⚡');
+    
+    // Roster slot badge
+    const slotBadge = isStarter
+      ? `<span class="spotlight-slot-badge starter-badge">START</span>`
+      : `<span class="spotlight-slot-badge bench-badge">BENCH</span>`;
+
+    // Position & Rank text
+    const posRankText = spotlight.rank 
+      ? `${spotlight.position} #${spotlight.rank}` 
+      : `${spotlight.position}`;
+
+    const mgrName = spotlight.manager_name || spotlight.fantasy_team_name || 'ROSTER';
 
     this.dom.highlightContainer.innerHTML = `
-      <div class="spotlight-pill mvp-pill ${isFA ? 'is-free-agent' : ''}" style="border-color: ${this.hexToRgba(accentColor, 0.45)}; --hl-glow-color: ${this.hexToRgba(accentColor, 0.25)}; box-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.25)}, 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05); animation: pill-fade 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
+      <div class="spotlight-pill mvp-pill ${isFA ? 'is-free-agent' : ''} ${!isStarter ? 'is-bench' : ''}" style="border-color: ${this.hexToRgba(accentColor, 0.45)}; --hl-glow-color: ${this.hexToRgba(accentColor, 0.25)}; box-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.25)}, 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05); animation: pill-fade 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
         <div class="spotlight-avatar-wrap">
           <img class="spotlight-avatar" src="${spotlight.headshot_url}" alt="${spotlight.player_name}" style="border-color: ${accentColor}; box-shadow: 0 0 8px ${this.hexToRgba(accentColor, 0.35)};" onerror="window.hud && window.hud.handleAvatarError(this, '${spotlight.nfl_team || ""}', ${spotlight.position === "DEF"})" />
           <span class="spotlight-pos-badge" style="border-color: ${accentColor}; color: ${accentColor}; font-weight: 800;">${spotlight.position}</span>
@@ -761,7 +791,7 @@ class NFLGameHUD {
 
         <div class="spotlight-info">
           <span class="spotlight-top-tag" style="color: ${accentColor}; font-weight: 800; text-shadow: 0 0 6px ${this.hexToRgba(accentColor, 0.3)};">
-            ${isFA ? '🆓' : '⭐'} ${this.escapeHtml(tagText)}
+            ${isFA ? '🆓' : rankEmoji} ${posRankText} · ${this.escapeHtml(mgrName.toUpperCase())} ${slotBadge}
           </span>
           <span class="spotlight-player-name">${this.escapeHtml(spotlight.player_name)}</span>
         </div>
@@ -770,7 +800,7 @@ class NFLGameHUD {
 
         <div class="spotlight-score-badge">
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 800;">
-            ${spotlight.points.toFixed(1)} <span style="font-size: 9px; color: var(--color-text-dim);">PTS</span>
+            ${spotlight.points.toFixed(1)} <span style="font-size: 9px; color: var(--color-text-dim); margin-left: 2px;">PTS</span>
           </span>
         </div>
       </div>

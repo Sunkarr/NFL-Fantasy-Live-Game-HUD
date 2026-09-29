@@ -136,8 +136,11 @@ Das Highlight-Segment ist **nahtlos in das rechte Ende der oberen Leiste integri
   - Scoren mehrere Spieler gleichzeitig (z. B. in der 19:00 Uhr Konferenz), reihen sie sich in die Queue ein (`+1 IN QUEUE`).
   - Anzeigedauer gekoppelt an die globale Animations-Geschwindigkeit (Normal: 10s, Fast: 5s, Slow: 20s).
 * **Idle-Zustand (wenn keine Queue aktiv ist)**:
-  - Rotiert automatisch durch die Top-Performer der Woche nach Position (**QB, RB, WR, TE, DEF, K**) inklusive Free Agents.
-  - **Defensiv- & Team-Logos**: Team-Verteidigungen (z. B. `MIN`, `BUF`, `KC`, `DAL`) laden automatisch das offizielle Sleeper NFL-Team-Logo (`https://sleepercdn.com/images/team_logos/nfl/{team}.png`) inklusive kaskadiertem ESPN-Fallback (`https://a.espncdn.com/i/teamlogos/nfl/500/{team}.png`), sodass Abwehr-MVPs wie die **Minnesota Vikings** in Woche 2 stets gestochen scharf dargestellt werden.
+  - **All Active Players Rotation (Starters & Bench)**: Rotiert automatisch durch alle aktiven Spieler aller Fantasy-Manager der Liga (inklusive Bank-Spieler).
+  - **Ausschluss inaktiver Spieler**: Spieler, die noch nicht gespielt haben bzw. genau 0.0 FPTS aufweisen, werden konsequent ausgefiltert, um irreführende Kacheln während laufender Matchup-Slots zu vermeiden.
+  - **Positionsweise Rotation**: Die Rotation durchläuft strukturiert Position für Position (**QB → RB → WR → TE → K → DEF**). Innerhalb jeder Position sind alle Spieler der Liga absteigend nach erzielten Fantasy-Punkten geordnet (`#1, #2, #3...`).
+  - **Roster-Slot & Manager-Branding**: Jede Kachel zeigt den Positionsrang, den Managernamen im Team-Farbakzent und ein klares Badge für den Aufstellungsstatus (`[START]` in Cyan vs. `[BENCH]` in Bernstein/Gelb).
+  - **Defensiv- & Team-Logos**: Team-Verteidigungen (z. B. `MIN`, `BUF`, `KC`, `DAL`) laden automatisch das offizielle Sleeper NFL-Team-Logo (`https://sleepercdn.com/images/team_logos/nfl/{team}.png`) inklusive kaskadiertem ESPN-Fallback (`https://a.espncdn.com/i/teamlogos/nfl/500/{team}.png`), sodass Abwehr-Kacheln wie die **Minnesota Vikings** stets gestochen scharf dargestellt werden.
 
 ---
 
@@ -148,8 +151,9 @@ Für Entwicklungs-, Präsentations- und Testzwecke steht unter `http://localhost
   - **3-Play Queue Burst**: Simuliert 3 aufeinanderfolgende Highlights innerhalb von 1.5s, um die FIFO-Warteschlange (`+1 IN QUEUE`), Timer-Kompression und den **Re-Jiggle Burst** der aktiven Kachel live zu testen.
   - **Interaktive In-Browser Sandbox Preview**: Rendert die Highlight-Kachel direkt auf der Admin-Seite mit separaten Testbuttons für Box-Jiggle, NFL Fanfare Audio und Web Audio API Synthese.
   - **Sound FX Controls**: Umschalten zwischen Sound an/aus mit Live-Statusanzeige (`SOUND ON` / `SOUND MUTED`).
-* **Position MVP Live Inspector**:
-  - Live-Grid aller 6 Position-MVPs der aktuellen Woche mit Headshots, Team-Logos und Punkten.
+* **Active Players Live Overview**:
+  - Übersicht aller aktiven Liga-Spieler (Starters & Bench) nach Position geordnet und nach FPTS absteigend sortiert.
+  - Interaktive Filterleiste zur Filterung nach Position (`ALL`, `QB`, `RB`, `WR`, `TE`, `K`, `DEF`) und Slot (`ALL`, `STARTER`, `BENCH`).
   - Quick-Switcher für Woche 1, 2, 3 und Live-Auto zur sofortigen Kontrolle der Datenbasis.
 
 ---

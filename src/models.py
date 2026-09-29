@@ -74,9 +74,12 @@ class IdleSpotlight(BaseModel):
     manager_name: str
     points: float
     headshot_url: str
-    title: str = "TOP SCORER"
+    title: str = "ACTIVE PLAYER"
     color_accent: str = "#94a3b8"
     is_free_agent: bool = False
+    is_starter: bool = True
+    roster_slot: str = "STARTER"  # "STARTER" or "BENCH"
+    rank: Optional[int] = None    # Position rank sorted by FPTS descending (1, 2, 3...)
 
 
 class DisplaySettings(BaseModel):

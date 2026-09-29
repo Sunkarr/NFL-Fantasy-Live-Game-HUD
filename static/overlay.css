@@ -313,6 +313,10 @@ html, body {
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
+.spotlight-pill.is-bench {
+  opacity: 0.95;
+}
+
 /* Prominent Live Highlight Entrance & Jiggle Animation */
 .spotlight-pill.live-highlight {
   animation: highlight-entrance-jiggle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both,
@@ -401,12 +405,38 @@ html, body {
   gap: 3px;
 }
 
+/* Active Roster Slot Badge (Starter vs Bench) */
+.spotlight-slot-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-left: 3px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.spotlight-slot-badge.starter-badge {
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+}
+
+.spotlight-slot-badge.bench-badge {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
 .flame-icon {
   display: inline-block;
   animation: flame-flicker 0.7s infinite alternate ease-in-out;
 }
-
-
 
 .spotlight-player-name {
   font-size: clamp(11px, 0.9vw, 13px);
@@ -594,8 +624,6 @@ html, body {
   0% { transform: scale(1) rotate(-4deg); }
   100% { transform: scale(1.25) rotate(4deg); }
 }
-
-
 
 @keyframes slide-in-right {
   from { transform: translateX(40px); opacity: 0; }
