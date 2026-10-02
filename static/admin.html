@@ -1202,19 +1202,19 @@
         <div class="preview-pill ${jiggleClass}" style="border-color: ${accentColor}; --hl-glow-color: ${accentColor};">
           <div class="preview-avatar-wrap">
             <img class="preview-avatar" src="${headshotUrl || 'https://sleepercdn.com/content/nfl/players/4984.jpg'}" alt="${playerName}" style="border-color: ${accentColor}; box-shadow: 0 0 10px ${hexToRgba(accentColor, 0.6)};" onerror="this.src='${fallbackUrl}'" />
-            <span class="preview-pos-badge" style="background: ${accentColor}; color: #000;">${pos}</span>
+            <span class="preview-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${accentColor}; color: #ffffff; font-weight: 800;">${pos}</span>
           </div>
 
           <div class="preview-info">
-            <span class="preview-top-tag" style="color: ${accentColor}; font-weight: 800;">
+            <span class="preview-top-tag" style="color: #ffffff; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
               ${header.emoji} ${header.label}
             </span>
             <span class="preview-player-name">${formatHighlightDisplayName(playerName, pos, nflTeam)}</span>
           </div>
 
           <div class="preview-score-badge">
-            <span class="preview-pts-value" style="color: ${accentColor}; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.18)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important;">
-              +${deltaPoints.toFixed(1)} <span style="font-size: 8.5px; color: ${hexToRgba(accentColor, 0.85)};">FPTS</span>
+            <span class="preview-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
+              +${deltaPoints.toFixed(1)} <span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
             </span>
           </div>
 
@@ -1274,7 +1274,8 @@
       container.innerHTML = filtered.map(m => {
         const isStarter = m.is_starter !== false && m.roster_slot !== 'BENCH';
         const color = m.color_accent || '#00f0ff';
-        const rankText = m.rank ? `#${m.rank}` : '';
+        const crown = m.rank === 1 ? '👑 ' : '';
+        const rankText = m.rank ? `${crown}#${m.rank}` : '';
         const mgr = m.manager_name || m.fantasy_team_name || 'Roster';
         return `
           <div class="mvp-item ${!isStarter ? 'is-bench' : ''}">
@@ -1299,7 +1300,7 @@
       try {
         const res = await fetch('/api/state');
         const state = await res.json();
-        const mvps = state.idle_spotlights || [];
+        const mvps = (state.idle_spotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
         if (state.display_settings) {
           if (typeof state.display_settings.sound_enabled === 'boolean') {
             soundEnabled = state.display_settings.sound_enabled;

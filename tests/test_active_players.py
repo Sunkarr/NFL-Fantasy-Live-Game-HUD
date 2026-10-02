@@ -15,13 +15,22 @@ class TestActivePlayersRotation(unittest.TestCase):
 
         self.assertGreater(len(spotlights), 5, "Should have multiple active players in mock league")
 
-        # 1. No player with 0.0 points
+        # 1. No player with 0.0 points and crown emoji only for leader
         for p in spotlights:
             self.assertNotEqual(p.points, 0.0, f"Player {p.player_name} has 0.0 points")
             self.assertIn(p.roster_slot, ["STARTER", "BENCH"])
             self.assertIsInstance(p.is_starter, bool)
             self.assertIsNotNone(p.rank)
             self.assertGreaterEqual(p.rank, 1)
+
+            # Crown only for leader (rank 1), other than that only rank, position, owner
+            if p.rank == 1:
+                self.assertTrue(p.title.startswith("👑 #1"), f"Leader {p.player_name} must have crown: {p.title}")
+            else:
+                self.assertFalse(p.title.startswith("👑"), f"Non-leader {p.player_name} must not have crown: {p.title}")
+                self.assertTrue(p.title.startswith(f"#{p.rank}"), f"Player {p.player_name} must start with #{p.rank}: {p.title}")
+            self.assertNotIn("STARTER", p.title)
+            self.assertNotIn("BENCH", p.title)
 
         # 2. Both starters and bench players present
         has_starter = any(p.is_starter is True for p in spotlights)

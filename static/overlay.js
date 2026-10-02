@@ -230,9 +230,9 @@ class NFLGameHUD {
       }
     }
 
-    // 2. Update Position MVPs list
+    // 2. Update Position MVPs list (filter out zero FPTS players)
     const incomingMVPs = state.idle_spotlights || (state.idle_spotlight ? [state.idle_spotlight] : []);
-    this.idleSpotlights = incomingMVPs;
+    this.idleSpotlights = (incomingMVPs || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
 
     // 3. Matchups Rendering
     const matchups = state.matchups || [];
@@ -534,7 +534,9 @@ class NFLGameHUD {
   startIdleSpotlightCycle(forceImmediate = false) {
     if (this.currentHighlight) return;
 
-    if (!this.idleSpotlights || this.idleSpotlights.length === 0) {
+    const activeMVPs = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
+
+    if (activeMVPs.length === 0) {
       this.stopIdleSpotlightCycle();
       if (this.dom.highlightContainer) {
         this.dom.highlightContainer.innerHTML = `
@@ -548,7 +550,7 @@ class NFLGameHUD {
             </div>
             <div class="spotlight-score-badge">
               <span class="spotlight-pts-value" style="color: var(--color-text-dim); font-weight: 700;">
-                0.0 <span style="font-size: 9px; color: var(--color-text-dim);">PTS</span>
+                0.0 <span style="font-size: 9px; color: var(--color-text-dim);">FPTS</span>
               </span>
             </div>
           </div>
@@ -562,18 +564,19 @@ class NFLGameHUD {
     // Immediately swap to MVP card if a highlight just finished or no MVP is showing
     if (!hasMvpCard || forceImmediate) {
       this.stopIdleSpotlightCycle();
-      if (this.currentSpotlightIndex >= this.idleSpotlights.length) {
+      if (this.currentSpotlightIndex >= activeMVPs.length) {
         this.currentSpotlightIndex = 0;
       }
-      this.renderIdleSpotlight(this.idleSpotlights[this.currentSpotlightIndex]);
+      this.renderIdleSpotlight(activeMVPs[this.currentSpotlightIndex]);
     }
 
     if (this.idleTimer) return;
 
     this.idleTimer = setInterval(() => {
-      if (!this.currentHighlight && this.idleSpotlights && this.idleSpotlights.length > 0) {
-        this.currentSpotlightIndex = (this.currentSpotlightIndex + 1) % this.idleSpotlights.length;
-        this.renderIdleSpotlight(this.idleSpotlights[this.currentSpotlightIndex]);
+      const currentList = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
+      if (!this.currentHighlight && currentList.length > 0) {
+        this.currentSpotlightIndex = (this.currentSpotlightIndex + 1) % currentList.length;
+        this.renderIdleSpotlight(currentList[this.currentSpotlightIndex]);
       }
     }, this.idleIntervalMs);
   }
@@ -725,7 +728,6 @@ class NFLGameHUD {
     if (!this.dom.highlightContainer) return;
 
     const accentColor = hl.color_accent || '#94a3b8';
-    const tagText = hl.is_free_agent ? 'FREE AGENT' : (hl.fantasy_team_name || 'LIVE PLAY');
     const remaining = this.highlightQueue.length;
     const showQueue = remaining > 0 ? '' : 'display: none;';
 
@@ -735,11 +737,11 @@ class NFLGameHUD {
       <div class="spotlight-pill live-highlight" style="border-color: ${accentColor}; --hl-glow-color: ${accentColor};">
         <div class="spotlight-avatar-wrap">
           <img class="spotlight-avatar" src="${hl.headshot_url}" alt="${hl.player_name}" style="border-color: ${accentColor}; box-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.6)};" onerror="window.hud && window.hud.handleAvatarError(this, '${hl.nfl_team || ""}', ${hl.position === "DEF"})" />
-          <span class="spotlight-pos-badge" style="background: ${accentColor}; color: #000; font-weight: 900;">${hl.position}</span>
+          <span class="spotlight-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${accentColor}; color: #ffffff; font-weight: 900;">${hl.position}</span>
         </div>
 
         <div class="spotlight-info">
-          <span class="spotlight-top-tag" style="color: ${accentColor}; font-weight: 800; text-shadow: 0 0 8px ${this.hexToRgba(accentColor, 0.5)};">
+          <span class="spotlight-top-tag" style="color: #ffffff; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
             ${header.emoji} ${header.label}
           </span>
           <span class="spotlight-player-name">${this.escapeHtml(this.formatHighlightDisplayName(hl.player_name, hl.position, hl.nfl_team))}</span>
@@ -750,8 +752,8 @@ class NFLGameHUD {
         </div>
 
         <div class="spotlight-score-badge">
-          <span class="spotlight-pts-value" style="color: ${accentColor}; border: 1.5px solid ${accentColor} !important; background: ${this.hexToRgba(accentColor, 0.18)} !important; box-shadow: 0 0 12px ${this.hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.65)};">
-            +${hl.delta_points.toFixed(1)}<span class="pts-sub" style="color: ${this.hexToRgba(accentColor, 0.85)};">FPTS</span>
+          <span class="spotlight-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${this.hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${this.hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
+            +${hl.delta_points.toFixed(1)}<span class="pts-sub" style="color: #ffffff !important; opacity: 0.9; margin-left: 2px;">FPTS</span>
           </span>
         </div>
 
@@ -763,35 +765,30 @@ class NFLGameHUD {
   renderIdleSpotlight(spotlight) {
     if (!this.dom.highlightContainer || !spotlight) return;
 
+    // Strict filter: only players with non-zero fpts
+    const pts = Number(spotlight.points) || 0;
+    if (Math.round(pts * 100) === 0) return;
+
     const isFA = spotlight.is_free_agent;
-    const isStarter = spotlight.is_starter !== false && spotlight.roster_slot !== 'BENCH';
     const accentColor = spotlight.color_accent || (isFA ? '#94a3b8' : '#00f0ff');
     
-    // Choose rank / icon emoji
-    const rankEmoji = spotlight.rank === 1 ? '👑' : (isStarter ? '⭐' : '⚡');
-    
-    // Roster slot badge
-    const slotBadge = isStarter
-      ? `<span class="spotlight-slot-badge starter-badge">START</span>`
-      : `<span class="spotlight-slot-badge bench-badge">BENCH</span>`;
-
-    // Position & Rank text
-    const posRankText = spotlight.rank 
-      ? `${spotlight.position} #${spotlight.rank}` 
-      : `${spotlight.position}`;
-
-    const mgrName = spotlight.manager_name || spotlight.fantasy_team_name || 'ROSTER';
+    // Crown emoji for leader (rank 1), other than that only show rank, position, owner, fpts (no additional labels etc.)
+    const isLeader = spotlight.rank === 1;
+    const leaderCrown = isLeader ? '👑 ' : '';
+    const rankPart = spotlight.rank ? `#${spotlight.rank} ` : '';
+    const mgrName = spotlight.manager_name || spotlight.fantasy_team_name || (isFA ? 'FREE AGENT' : 'ROSTER');
+    const topTagText = `${leaderCrown}${rankPart}${spotlight.position} · ${this.escapeHtml(mgrName.toUpperCase())}`;
 
     this.dom.highlightContainer.innerHTML = `
-      <div class="spotlight-pill mvp-pill ${isFA ? 'is-free-agent' : ''} ${!isStarter ? 'is-bench' : ''}" style="border-color: ${this.hexToRgba(accentColor, 0.45)}; --hl-glow-color: ${this.hexToRgba(accentColor, 0.25)}; box-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.25)}, 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05); animation: pill-fade 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
+      <div class="spotlight-pill mvp-pill ${isFA ? 'is-free-agent' : ''}" style="border-color: ${this.hexToRgba(accentColor, 0.45)}; --hl-glow-color: ${this.hexToRgba(accentColor, 0.25)}; box-shadow: 0 0 10px ${this.hexToRgba(accentColor, 0.25)}, 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05); animation: pill-fade 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
         <div class="spotlight-avatar-wrap">
           <img class="spotlight-avatar" src="${spotlight.headshot_url}" alt="${spotlight.player_name}" style="border-color: ${accentColor}; box-shadow: 0 0 8px ${this.hexToRgba(accentColor, 0.35)};" onerror="window.hud && window.hud.handleAvatarError(this, '${spotlight.nfl_team || ""}', ${spotlight.position === "DEF"})" />
-          <span class="spotlight-pos-badge" style="border-color: ${accentColor}; color: ${accentColor}; font-weight: 800;">${spotlight.position}</span>
+          <span class="spotlight-pos-badge" style="border-color: ${accentColor}; color: #ffffff; font-weight: 800; background: rgba(0, 0, 0, 0.85);">${spotlight.position}</span>
         </div>
 
         <div class="spotlight-info">
           <span class="spotlight-top-tag" style="color: ${accentColor}; font-weight: 800; text-shadow: 0 0 6px ${this.hexToRgba(accentColor, 0.3)};">
-            ${isFA ? '🆓' : rankEmoji} ${posRankText} · ${this.escapeHtml(mgrName.toUpperCase())} ${slotBadge}
+            ${topTagText}
           </span>
           <span class="spotlight-player-name">${this.escapeHtml(spotlight.player_name)}</span>
         </div>
@@ -800,7 +797,7 @@ class NFLGameHUD {
 
         <div class="spotlight-score-badge">
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 800;">
-            ${spotlight.points.toFixed(1)} <span style="font-size: 9px; color: var(--color-text-dim); margin-left: 2px;">PTS</span>
+            ${pts.toFixed(1)} <span style="font-size: 8.5px; color: #ffffff; opacity: 0.85; margin-left: 2px;">FPTS</span>
           </span>
         </div>
       </div>

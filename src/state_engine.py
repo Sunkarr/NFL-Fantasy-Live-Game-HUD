@@ -223,7 +223,7 @@ class HUDStateEngine:
                 manager_name="Cyber Blitz",
                 points=34.6,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4984.jpg",
-                title="QB #1 · CYBER BLITZ · STARTER",
+                title="👑 #1 QB · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
                 is_starter=True,
@@ -239,7 +239,7 @@ class HUDStateEngine:
                 manager_name="Neon Titans",
                 points=28.4,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4881.jpg",
-                title="QB #2 · NEON TITANS · STARTER",
+                title="#2 QB · NEON TITANS",
                 color_accent="#ff00aa",
                 is_free_agent=False,
                 is_starter=True,
@@ -255,7 +255,7 @@ class HUDStateEngine:
                 manager_name="Golden Strikers",
                 points=21.5,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4046.jpg",
-                title="QB #3 · GOLDEN STRIKERS · STARTER",
+                title="#3 QB · GOLDEN STRIKERS",
                 color_accent="#ffaa00",
                 is_free_agent=False,
                 is_starter=True,
@@ -271,7 +271,7 @@ class HUDStateEngine:
                 manager_name="Emerald Vipers",
                 points=18.2,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4983.jpg",
-                title="QB #4 · EMERALD VIPERS · BENCH",
+                title="#4 QB · EMERALD VIPERS",
                 color_accent="#00e676",
                 is_free_agent=False,
                 is_starter=False,
@@ -288,7 +288,7 @@ class HUDStateEngine:
                 manager_name="Neon Titans",
                 points=29.4,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6813.jpg",
-                title="RB #1 · NEON TITANS · STARTER",
+                title="👑 #1 RB · NEON TITANS",
                 color_accent="#ff00aa",
                 is_free_agent=False,
                 is_starter=True,
@@ -304,7 +304,7 @@ class HUDStateEngine:
                 manager_name="Cyber Blitz",
                 points=26.1,
                 headshot_url="https://sleepercdn.com/content/nfl/players/4866.jpg",
-                title="RB #2 · CYBER BLITZ · STARTER",
+                title="#2 RB · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
                 is_starter=True,
@@ -320,7 +320,7 @@ class HUDStateEngine:
                 manager_name="Quantum Knights",
                 points=17.5,
                 headshot_url="https://sleepercdn.com/content/nfl/players/5892.jpg",
-                title="RB #3 · QUANTUM KNIGHTS · BENCH",
+                title="#3 RB · QUANTUM KNIGHTS",
                 color_accent="#a855f7",
                 is_free_agent=False,
                 is_starter=False,
@@ -337,7 +337,7 @@ class HUDStateEngine:
                 manager_name="Quantum Knights",
                 points=27.2,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6794.jpg",
-                title="WR #1 · QUANTUM KNIGHTS · STARTER",
+                title="👑 #1 WR · QUANTUM KNIGHTS",
                 color_accent="#a855f7",
                 is_free_agent=False,
                 is_starter=True,
@@ -353,7 +353,7 @@ class HUDStateEngine:
                 manager_name="Cyber Blitz",
                 points=23.4,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6786.jpg",
-                title="WR #2 · CYBER BLITZ · STARTER",
+                title="#2 WR · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
                 is_starter=True,
@@ -369,7 +369,7 @@ class HUDStateEngine:
                 manager_name="Golden Strikers",
                 points=19.2,
                 headshot_url="https://sleepercdn.com/content/nfl/players/11632.jpg",
-                title="WR #3 · GOLDEN STRIKERS · BENCH",
+                title="#3 WR · GOLDEN STRIKERS",
                 color_accent="#ffaa00",
                 is_free_agent=False,
                 is_starter=False,
@@ -386,7 +386,7 @@ class HUDStateEngine:
                 manager_name="Golden Strikers",
                 points=19.8,
                 headshot_url="https://sleepercdn.com/content/nfl/players/1466.jpg",
-                title="TE #1 · GOLDEN STRIKERS · STARTER",
+                title="👑 #1 TE · GOLDEN STRIKERS",
                 color_accent="#ffaa00",
                 is_free_agent=False,
                 is_starter=True,
@@ -402,7 +402,7 @@ class HUDStateEngine:
                 manager_name="Emerald Vipers",
                 points=14.2,
                 headshot_url="https://sleepercdn.com/content/nfl/players/8130.jpg",
-                title="TE #2 · EMERALD VIPERS · BENCH",
+                title="#2 TE · EMERALD VIPERS",
                 color_accent="#00e676",
                 is_free_agent=False,
                 is_starter=False,
@@ -419,7 +419,7 @@ class HUDStateEngine:
                 manager_name="Cyber Blitz",
                 points=15.0,
                 headshot_url="https://sleepercdn.com/content/nfl/players/11533.jpg",
-                title="K #1 · CYBER BLITZ · STARTER",
+                title="👑 #1 K · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
                 is_starter=True,
@@ -435,7 +435,7 @@ class HUDStateEngine:
                 manager_name="Neon Titans",
                 points=9.0,
                 headshot_url="https://sleepercdn.com/content/nfl/players/1264.jpg",
-                title="K #2 · NEON TITANS · STARTER",
+                title="#2 K · NEON TITANS",
                 color_accent="#ff00aa",
                 is_free_agent=False,
                 is_starter=True,
@@ -452,7 +452,7 @@ class HUDStateEngine:
                 manager_name="Emerald Vipers",
                 points=18.0,
                 headshot_url="https://sleepercdn.com/images/team_logos/nfl/min.png",
-                title="DEF #1 · EMERALD VIPERS · STARTER",
+                title="👑 #1 DEF · EMERALD VIPERS",
                 color_accent="#00e676",
                 is_free_agent=False,
                 is_starter=True,
@@ -468,7 +468,7 @@ class HUDStateEngine:
                 manager_name="Golden Strikers",
                 points=11.0,
                 headshot_url="https://sleepercdn.com/images/team_logos/nfl/buf.png",
-                title="DEF #2 · GOLDEN STRIKERS · BENCH",
+                title="#2 DEF · GOLDEN STRIKERS",
                 color_accent="#ffaa00",
                 is_free_agent=False,
                 is_starter=False,
@@ -818,30 +818,18 @@ class HUDStateEngine:
                         win_probability_a=100.0
                     ))
 
-            # Check if any fantasy-owned player in the league has scored > 0 points yet
-            has_scoring_players = any(len(plist) > 0 for plist in active_by_position.values())
-            is_pregame_mode = not has_scoring_players
-            pool_by_position = active_by_position if has_scoring_players else pregame_starters_by_pos
-
             # Build list of Active Players ordered position-by-position: QB -> RB -> WR -> TE -> K -> DEF
-            # In live play (has_scoring_players=True), only players with FPTS != 0 are rotated (sorted by FPTS descending with ranks #1, #2...).
-            # In pre-game / upcoming week before games kick off, all starting players rotate (QB -> RB -> WR -> TE -> K -> DEF)
-            # so the HUD displays scheduled starters instead of an empty blank void.
+            # In mvp/player cards, only show players that have non-zero fpts (so IR players etc. don't get displayed)
+            # Crown emoji for leader, other than that only show rank, position, owner, fpts (no additional labels etc.)
             idle_spotlights: List[IdleSpotlight] = []
             pos_order = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
             for pos in pos_order:
-                pos_players = pool_by_position.get(pos, [])
-                if has_scoring_players:
-                    pos_players.sort(key=lambda p: p["points"], reverse=True)
+                pos_players = [p for p in active_by_position.get(pos, []) if round(p.get("points", 0.0), 2) != 0.0]
+                pos_players.sort(key=lambda p: p["points"], reverse=True)
                 for rank, p in enumerate(pos_players, start=1):
-                    slot_tag = p["roster_slot"]
-                    if is_pregame_mode:
-                        p_title = f"{pos} · {p['manager_name'].upper()} · START"
-                        rank_val = None
-                    else:
-                        p_title = f"{pos} #{rank} · {p['manager_name'].upper()} · {slot_tag}"
-                        rank_val = rank
+                    crown = "👑 " if rank == 1 else ""
+                    p_title = f"{crown}#{rank} {pos} · {p['manager_name'].upper()}"
 
                     idle_spotlights.append(IdleSpotlight(
                         player_id=p["player_id"],
@@ -857,22 +845,17 @@ class HUDStateEngine:
                         is_free_agent=False,
                         is_starter=p["is_starter"],
                         roster_slot=p["roster_slot"],
-                        rank=rank_val
+                        rank=rank
                     ))
 
             # Include any non-standard positions if present
-            for pos, pos_players in pool_by_position.items():
+            for pos, pos_raw in active_by_position.items():
                 if pos not in pos_order:
-                    if has_scoring_players:
-                        pos_players.sort(key=lambda p: p["points"], reverse=True)
+                    pos_players = [p for p in pos_raw if round(p.get("points", 0.0), 2) != 0.0]
+                    pos_players.sort(key=lambda p: p["points"], reverse=True)
                     for rank, p in enumerate(pos_players, start=1):
-                        slot_tag = p["roster_slot"]
-                        if is_pregame_mode:
-                            p_title = f"{pos} · {p['manager_name'].upper()} · START"
-                            rank_val = None
-                        else:
-                            p_title = f"{pos} #{rank} · {p['manager_name'].upper()} · {slot_tag}"
-                            rank_val = rank
+                        crown = "👑 " if rank == 1 else ""
+                        p_title = f"{crown}#{rank} {pos} · {p['manager_name'].upper()}"
 
                         idle_spotlights.append(IdleSpotlight(
                             player_id=p["player_id"],
@@ -888,7 +871,7 @@ class HUDStateEngine:
                             is_free_agent=False,
                             is_starter=p["is_starter"],
                             roster_slot=p["roster_slot"],
-                            rank=rank_val
+                            rank=rank
                         ))
 
             # Update Current State (idle_spotlights is empty if no games have started yet)
