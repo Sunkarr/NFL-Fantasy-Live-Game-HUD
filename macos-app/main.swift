@@ -57,7 +57,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var soundCheckbox: NSButton?
     var soundThemePopup: NSPopUpButton?
     var previewSoundPlayer: NSSound?
-    var selectedSoundTheme: String = "fox_horn" 
+    var selectedSoundTheme: String = "fox_horn"
+    var mouseTrackingTimer: Timer?
+    var isHoveringHUD: Bool = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         writeLogLine("Application did finish launching.")
@@ -158,6 +160,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     func applicationWillTerminate(_ notification: Notification) {
         writeLogLine("Application will terminate.")
+        stopMouseTracking()
         keepFrontTimer?.invalidate()
         hudWindow?.close()
         pythonProcess?.terminate()
@@ -927,7 +930,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         hudWindow?.makeKeyAndOrderFront(nil)
         hudWindow?.orderFrontRegardless()
         startKeepFrontTimer()
+        startMouseTracking()
         writeLogLine("HUD overlay window displayed.")
+    }
+
+    // Dynamic Hover Transparency: When cursor hovers over the HUD top bar, fade window to 0.08 opacity
+    // so users can comfortably interact with and view browser tabs / video controls beneath it without turning off HUD!
+    func startMouseTracking() {
+        mouseTrackingTimer?.invalidate()
+        mouseTrackingTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            guard let self = self, let window = self.hudWindow, window.isVisible else { return }
+            let mouseLoc = NSEvent.mouseLocation
+            let hovering = window.frame.contains(mouseLoc)
+            if hovering != self.isHoveringHUD {
+                self.isHoveringHUD = hovering
+                let targetAlpha: CGFloat = hovering ? 0.08 : 1.0
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.22
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    window.animator().alphaValue = targetAlpha
+                }
+            }
+        }
+    }
+
+    func stopMouseTracking() {
+        mouseTrackingTimer?.invalidate()
+        mouseTrackingTimer = nil
+        isHoveringHUD = false
+        hudWindow?.alphaValue = 1.0
     }
 
     func createHUDWindow() {
@@ -992,7 +1023,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     func loadOverlayURL() {
         guard let wv = webView, let url = URL(string: "\(serverURL)/overlay") else { return }
         writeLogLine("Loading WebKit URL: \(url)")
-        wv.load(URLRequest(url: url))
+        // Clear caches so latest CSS / JS updates are always loaded
+        WKWebsiteDataStore.default().removeData(ofTypes: [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache], modifiedSince: Date.distantPast) { }
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10.0)
+        req.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        wv.load(req)
     }
 
     // WKNavigationDelegate: Automatically retry if backend was bootstrapping
@@ -1040,12 +1076,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         guard let window = hudWindow else { return }
         if window.isVisible {
             writeLogLine("HUD toggled OFF.")
+            stopMouseTracking()
             window.orderOut(nil)
         } else {
             writeLogLine("HUD toggled ON.")
             repositionHUD()
             loadOverlayURL()
             bringHUDToFront()
+            startMouseTracking()
         }
     }
 }

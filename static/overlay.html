@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NFL Fantasy Live Game HUD</title>
-  <link rel="stylesheet" href="/static/overlay.css" />
+  <link rel="stylesheet" href="/static/overlay.css?v=1.5.0" />
 </head>
 <body>
   <!-- Ultra-Slim 68px Top Bar -->
@@ -14,13 +14,13 @@
       <span id="hud-week-tag" class="week-tag">WK 1</span>
     </div>
 
-    <!-- Center / Left: 3 League Matchup Kacheln (~75% Width) -->
-    <main id="matchups-container" class="matchups-container">
+    <!-- Center / Left: League Matchup Kacheln (~75% Width) -->
+    <main id="hud-matchups-container" class="matchups-container">
       <!-- Dynamically rendered by overlay.js -->
     </main>
 
     <!-- Right: Inline Highlight Queue Segment (~25% Width) -->
-    <aside id="highlight-container" class="highlight-queue-container">
+    <aside id="hud-highlight-container" class="highlight-queue-container">
       <!-- Dynamically rendered by overlay.js -->
     </aside>
   </header>
@@ -28,6 +28,6 @@
   <!-- HUD Toast Notification Overlay -->
   <div id="hud-toast" class="hud-toast" aria-live="polite"></div>
 
-  <script src="/static/overlay.js"></script>
+  <script src="/static/overlay.js?v=1.5.0"></script>
 </body>
 </html>

@@ -1,11 +1,15 @@
 import json
 import logging
+import os
+import time
 from typing import Dict, List, Optional, Any
 import httpx
 
 from src.config import PLAYERS_CACHE_FILE, LEAGUE_ID
 
 logger = logging.getLogger(__name__)
+
+CACHE_TTL_SECONDS = 86400.0  # 24 Hours: Daily refresh to capture NFL trades, cuts, and team changes
 
 
 class SleeperClient:
@@ -15,13 +19,49 @@ class SleeperClient:
         self.players_dict: Dict[str, Dict[str, Any]] = {}
         self._load_or_fetch_players()
 
+    def _is_cache_stale(self) -> bool:
+        """Check if local players cache is older than 24 hours."""
+        if not PLAYERS_CACHE_FILE.exists():
+            return True
+        try:
+            mtime = os.path.getmtime(PLAYERS_CACHE_FILE)
+            return (time.time() - mtime) > CACHE_TTL_SECONDS
+        except Exception:
+            return True
+
+    def get_cache_info(self) -> Dict[str, Any]:
+        """Return cache metadata (size, age in hours, staleness) for admin inspection."""
+        if PLAYERS_CACHE_FILE.exists():
+            try:
+                mtime = os.path.getmtime(PLAYERS_CACHE_FILE)
+                age_hours = round((time.time() - mtime) / 3600.0, 1)
+                return {
+                    "cached": True,
+                    "count": len(self.players_dict),
+                    "last_updated": mtime,
+                    "last_updated_str": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(mtime)),
+                    "age_hours": age_hours,
+                    "is_stale": age_hours > 24.0
+                }
+            except Exception:
+                pass
+        return {
+            "cached": False,
+            "count": len(self.players_dict),
+            "last_updated": 0,
+            "last_updated_str": "Never",
+            "age_hours": 999.0,
+            "is_stale": True
+        }
+
     def _load_or_fetch_players(self):
         """Load player database from local cache file."""
         if PLAYERS_CACHE_FILE.exists():
             try:
                 with open(PLAYERS_CACHE_FILE, "r", encoding="utf-8") as f:
                     self.players_dict = json.load(f)
-                logger.info(f"Loaded {len(self.players_dict)} players from cache.")
+                age = round((time.time() - os.path.getmtime(PLAYERS_CACHE_FILE)) / 3600.0, 1)
+                logger.info(f"Loaded {len(self.players_dict)} players from cache (Age: {age}h).")
                 return
             except Exception as e:
                 logger.warning(f"Failed to load cached players: {e}")
@@ -29,10 +69,15 @@ class SleeperClient:
         logger.info("Player cache not found. Will fetch on startup.")
 
     async def ensure_players_cache(self) -> int:
-        """Ensure players are loaded or fetched."""
-        if not self.players_dict:
+        """Ensure players are loaded; auto-refresh if missing or older than 24h."""
+        if not self.players_dict or self._is_cache_stale():
+            logger.info("Player database is missing or older than 24h. Refreshing from Sleeper API...")
             return await self.fetch_and_cache_players()
         return len(self.players_dict)
+
+    async def refresh_players_cache(self) -> int:
+        """Force manual re-fetch of complete NFL players database from Sleeper."""
+        return await self.fetch_and_cache_players()
 
     async def fetch_and_cache_players(self) -> int:
         """Download complete NFL players database from Sleeper."""

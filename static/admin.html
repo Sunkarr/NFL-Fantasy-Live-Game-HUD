@@ -439,8 +439,6 @@
       to { width: 0%; }
     }
 
-
-
     /* Custom Input Row */
     .form-row {
       display: flex;
@@ -621,12 +619,31 @@
     <header>
       <div class="title-area">
         <h1>🏈 NFL Fantasy Live Game HUD — Control & Simulation Center</h1>
-        <p>Test Highlight Jiggle Physics, Authentic NFL Fanfare Audio, Defense Logos, & Week Simulation</p>
+        <p>Test Highlight Jiggle Physics, Authentic Audio, Dual Matchup Bars, Red Zone Alerts & Sleeper Trade Sync</p>
       </div>
       <div class="top-links">
         <a href="/overlay" target="_blank">📺 Open Live HUD Overlay ↗</a>
       </div>
     </header>
+
+    <!-- Active League Switcher & Scalability Bar -->
+    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">🏈</span>
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: #fff;">
+            Active Sleeper League: <span id="current-league-name" style="color: var(--cyan);">Loading...</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            ID: <span id="current-league-id" style="font-family: var(--font-mono); color: #fff;">-</span> · 100% Liga-agnostisch (Beliebige Team-Anzahl 8–16, beliebige Roster-Größen & Positionen)
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="switch-league-input" placeholder="Sleeper League ID eingeben" style="width: 220px; font-size: 12px; padding: 7px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-family: var(--font-mono);" />
+        <button class="btn-cyan" style="font-size: 12px; padding: 7px 14px;" onclick="switchLeague()">Liga Wechseln</button>
+      </div>
+    </div>
 
     <div class="grid">
       <!-- Live Highlight Simulator & Sound Station -->
@@ -634,7 +651,7 @@
         <h2>
           <div class="card-title-left">
             <span>💥 Highlight Play & Sound Simulation Station</span>
-            <span id="sound-status-badge" class="status-badge">SOUND ON</span>
+            <span id=\"sound-status-badge\" class=\"status-badge\">SOUND ON</span>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <select id="sound-theme-select" onchange="changeSoundTheme(this.value)" style="padding: 7px 10px; font-size: 12px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--card-border); color: #fff; border-radius: 6px; cursor: pointer;">
@@ -739,6 +756,101 @@
             </select>
             <button class="btn-pink" onclick="triggerCustomHighlight()">🔥 Push to Live Overlay</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Red Zone Alert & Minutes Played Simulator -->
+      <div class="card full-width" style="border-color: rgba(255, 0, 170, 0.35);">
+        <h2>
+          <div class="card-title-left">
+            <span>🚨 Red Zone Alert & Dual Progress Bars Simulation</span>
+            <span class="status-badge" style="background: rgba(255, 0, 170, 0.15); color: #f472b6; border-color: rgba(255, 0, 170, 0.35);">PERSISTENT LIVE TESTER</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn-gray" style="font-size: 11px; padding: 5px 12px;" onclick="clearAllOverrides()">
+              🔄 Reset All Overrides (Live Auto)
+            </button>
+          </div>
+        </h2>
+        <p class="subtext">
+          Punkte für Red Zone und gespielte Minuten bleiben persistent auf den Kacheln sichtbar, bis sie geändert oder zurückgesetzt werden. Die Minutes Bar ist als dezenter mittelheller Schattenbalken unter dem Score-Balken gestaltet:
+        </p>
+
+        <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; align-items: center; background: rgba(0,0,0,0.3); padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Matchup:</span>
+            <select id="sim-matchup-id" style="width: 120px;">
+              <option value="1">Matchup 1</option>
+              <option value="2">Matchup 2</option>
+              <option value="3">Matchup 3</option>
+              <option value="4">Matchup 4</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Team Side:</span>
+            <select id="sim-team-side" style="width: 140px;">
+              <option value="a">Team A (Left)</option>
+              <option value="b">Team B (Right)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 14px;">
+          <!-- Red Zone Controls -->
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
+            <div style="font-size: 12px; font-weight: 800; color: #f472b6; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+              🔴 Red Zone Indicator (Avatar Pips)
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Sets the number of offensive starters currently inside the 20-yard line:
+            </p>
+            <div class="btn-group" style="margin: 0;" id="sim-rz-btn-group">
+              <button id="rz-btn-0" onclick="setMockRedZone(0)">0 (Off)</button>
+              <button id="rz-btn-1" class="btn-pink" onclick="setMockRedZone(1)">● 1 Dot</button>
+              <button id="rz-btn-2" class="btn-pink" onclick="setMockRedZone(2)">●● 2 Dots</button>
+              <button id="rz-btn-3" class="btn-pink" onclick="setMockRedZone(3)">●●● 3 Dots</button>
+              <button id="rz-btn-4" class="btn-pink" style="background: rgba(255, 0, 170, 0.25);" onclick="setMockRedZone(4)">3+ Badge (4+)</button>
+            </div>
+          </div>
+
+          <!-- Minutes Played Controls -->
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
+            <div style="font-size: 12px; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+              ⏱️ Minutes Played Bar (0% → Center 50%)
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Simulate total starter minutes (max 540 min for 9 starters @ 60m):
+            </p>
+            <div class="btn-group" style="margin: 0;" id="sim-min-btn-group">
+              <button id="min-btn-0" onclick="setMockMinutes(0)">0m (0%)</button>
+              <button id="min-btn-135" class="btn-cyan" onclick="setMockMinutes(135)">135m (25%)</button>
+              <button id="min-btn-270" class="btn-cyan" onclick="setMockMinutes(270)">270m (50%)</button>
+              <button id="min-btn-405" class="btn-cyan" onclick="setMockMinutes(405)">405m (75%)</button>
+              <button id="min-btn-540" class="btn-cyan" style="background: rgba(0, 240, 255, 0.25);" onclick="setMockMinutes(540)">540m (100% Center)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sleeper Player Cache & NFL Trade Sync Card -->
+      <div class="card full-width" style="border-color: rgba(16, 185, 129, 0.35);">
+        <h2>
+          <div class="card-title-left">
+            <span>🔄 Sleeper NFL Roster & IRL Trades Database Cache</span>
+            <span id="cache-status-badge" class="status-badge">CHECKING...</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn-active" style="background: rgba(16, 185, 129, 0.18); border-color: #10b981; color: #34d399;" onclick="refreshPlayerCache()">
+              ⚡ Sync Roster / Trade Database Now
+            </button>
+          </div>
+        </h2>
+        <p class="subtext">
+          Players cache auto-refreshes every 24 hours to automatically capture in-season NFL trades, team moves, and newly signed free agents so Red Zone alerts and game clock calculations correctly map to the player's current real-life NFL team.
+        </p>
+        <div id="cache-info-box" style="margin-top: 10px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+          Loading cache status...
         </div>
       </div>
 
@@ -923,21 +1035,6 @@
       renderSandboxPill('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', false);
     }
 
-    function playTestFanfare() {
-      if (!soundEnabled) {
-        showToast('⚠️ Sound is muted. Unmute to hear fanfare.');
-        return;
-      }
-      try {
-        const audio = new Audio('/static/sounds/nfl_highlight.wav');
-        audio.volume = 0.85;
-        audio.play().catch(() => previewSynthesizedFanfare());
-        showToast('🎺 Playing Broadcast Fanfare Audio...');
-      } catch (e) {
-        previewSynthesizedFanfare();
-      }
-    }
-
     function previewSynthesizedFanfare() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1040,10 +1137,6 @@
       return '#00f0ff';
     }
 
-    function triggerTestHighlight() {
-      return triggerPreset('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', 'touchdown', true);
-    }
-
     function getHighlightHeaderInfo(type, pos, deltaPoints, isTouchdown) {
       const isTD = isTouchdown || type === 'touchdown';
       const isOver10 = (deltaPoints || 0) >= 10.0;
@@ -1073,7 +1166,6 @@
     }
 
     async function triggerPreset(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, highlightType, isTouchdown) {
-      // NOTE: Do NOT play sound here in the admin UI! Sound is played by the HUD overlay when the highlight displays.
       try {
         const resp = await fetch('/api/test/highlight', {
           method: 'POST',
@@ -1146,7 +1238,6 @@
       if (!name) return '';
       const pos = (position || '').toUpperCase();
       
-      // For defenses, display only the 3-letter (or 2-3 char) NFL team code
       if (pos === 'DEF') {
         if (nflTeam && nflTeam.trim().length > 0) {
           return nflTeam.trim().toUpperCase();
@@ -1174,7 +1265,6 @@
         return upperName.replace(/DEFENSE|DEF/i, '').trim().substring(0, 3).toUpperCase();
       }
 
-      // For players: Jersey name format (First initial. Surname [suffix])
       const parts = name.trim().split(/\s+/);
       if (parts.length <= 1) return name;
 
@@ -1221,6 +1311,131 @@
           <div class="preview-timer-bar" style="background: ${accentColor};"></div>
         </div>
       `;
+    }
+
+    // Red Zone & Minutes Testing
+    async function setMockRedZone(count) {
+      const matchupId = parseInt(document.getElementById('sim-matchup-id').value, 10) || 1;
+      const teamSide = document.getElementById('sim-team-side').value || 'a';
+      try {
+        const res = await fetch('/api/test/set-redzone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchup_id: matchupId,
+            team_side: teamSide,
+            count: count,
+            player_names: count > 0 ? ['Simulated RZ Player'] : []
+          })
+        });
+        if (res.ok) {
+          showToast(`Matchup ${matchupId} Team ${teamSide.toUpperCase()}: Red Zone set to ${count} (Persistent)`);
+          [0, 1, 2, 3, 4].forEach(c => {
+            const btn = document.getElementById('rz-btn-' + c);
+            if (btn) btn.classList.toggle('btn-active', c === count);
+          });
+        } else {
+          showToast('Failed to set Red Zone');
+        }
+      } catch (e) {
+        showToast('Error setting Red Zone: ' + e);
+      }
+    }
+
+    async function setMockMinutes(minutes) {
+      const matchupId = parseInt(document.getElementById('sim-matchup-id').value, 10) || 1;
+      const teamSide = document.getElementById('sim-team-side').value || 'a';
+      try {
+        const res = await fetch('/api/test/set-minutes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchup_id: matchupId,
+            team_side: teamSide,
+            minutes: minutes
+          })
+        });
+        if (res.ok) {
+          showToast(`Matchup ${matchupId} Team ${teamSide.toUpperCase()}: Minutes set to ${minutes}m (Persistent)`);
+          [0, 135, 270, 405, 540].forEach(m => {
+            const btn = document.getElementById('min-btn-' + m);
+            if (btn) btn.classList.toggle('btn-active', m === minutes);
+          });
+        } else {
+          showToast('Failed to set minutes');
+        }
+      } catch (e) {
+        showToast('Error setting minutes: ' + e);
+      }
+    }
+
+    async function clearAllOverrides() {
+      try {
+        const res = await fetch('/api/test/clear-overrides', { method: 'POST' });
+        if (res.ok) {
+          showToast('🔄 Cleared all simulation overrides (Returned to Live Data)');
+          [0, 1, 2, 3, 4].forEach(c => {
+            const btn = document.getElementById('rz-btn-' + c);
+            if (btn) btn.classList.remove('btn-active');
+          });
+          [0, 135, 270, 405, 540].forEach(m => {
+            const btn = document.getElementById('min-btn-' + m);
+            if (btn) btn.classList.remove('btn-active');
+          });
+        } else {
+          showToast('Failed to clear overrides');
+        }
+      } catch (e) {
+        showToast('Error clearing overrides: ' + e);
+      }
+    }
+
+    // Sleeper Player Cache Info & Refresh
+    async function checkPlayerCache() {
+      const box = document.getElementById('cache-info-box');
+      const badge = document.getElementById('cache-status-badge');
+      try {
+        const res = await fetch('/api/players/cache-info');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.cached) {
+            const ageHours = data.file_age_hours !== null ? data.file_age_hours.toFixed(1) : '?';
+            const count = data.player_count.toLocaleString();
+            box.textContent = `Active Cache: ${count} NFL Players · Age: ${ageHours} hrs · Freshness: ${data.is_stale ? 'STALE (>24h)' : 'FRESH (<24h)'}`;
+            if (data.is_stale) {
+              badge.textContent = 'STALE (>24h)';
+              badge.className = 'status-badge muted';
+            } else {
+              badge.textContent = 'FRESH';
+              badge.className = 'status-badge';
+            }
+          } else {
+            box.textContent = 'No local cache file found yet. Click sync below to download.';
+            badge.textContent = 'EMPTY';
+            badge.className = 'status-badge muted';
+          }
+        }
+      } catch (e) {
+        box.textContent = 'Could not load cache info: ' + e;
+      }
+    }
+
+    async function refreshPlayerCache() {
+      const box = document.getElementById('cache-info-box');
+      box.textContent = 'Downloading latest NFL players & team rosters from Sleeper API...';
+      showToast('Syncing Sleeper players database...');
+      try {
+        const res = await fetch('/api/players/refresh-cache', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Synced ${data.count} NFL players!`);
+          checkPlayerCache();
+        } else {
+          showToast('Cache refresh failed: ' + (data.message || 'unknown error'));
+        }
+      } catch (e) {
+        showToast('Cache refresh error: ' + e);
+      }
     }
 
     function hexToRgba(hex, alpha = 1) {
@@ -1313,6 +1528,15 @@
           }
         }
         
+        if (state.league_name) {
+          const lName = document.getElementById('current-league-name');
+          if (lName) lName.textContent = state.league_name;
+        }
+        if (state.league_id) {
+          const lId = document.getElementById('current-league-id');
+          if (lId) lId.textContent = state.league_id;
+        }
+
         const weekTag = document.getElementById('active-week-badge');
         if (state.week) {
           weekTag.textContent = `WEEK ${state.week}`;
@@ -1328,6 +1552,32 @@
         renderFilteredMVPs();
       } catch (e) {
         container.innerHTML = '<div style="color: #ef4444; padding: 12px; grid-column: 1 / -1; text-align: center;">Error loading active players.</div>';
+      }
+    }
+
+    async function switchLeague() {
+      const input = document.getElementById('switch-league-input');
+      const leagueId = input ? input.value.trim() : '';
+      if (!leagueId) {
+        showToast('Bitte eine gültige Sleeper League ID eingeben');
+        return;
+      }
+      try {
+        const res = await fetch('/api/settings/league', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ league_id: leagueId })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Erfolgreich gewechselt zu: ${data.league_name || data.league_id}`);
+          input.value = '';
+          setTimeout(() => loadMVPs(), 600);
+        } else {
+          showToast('Fehler beim Wechseln der Liga');
+        }
+      } catch (e) {
+        showToast('Fehler: ' + e);
       }
     }
 
@@ -1396,6 +1646,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       renderSandboxPill('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', '#00f0ff', false, 'touchdown', true);
       loadMVPs();
+      checkPlayerCache();
 
       const posSelect = document.getElementById('hl-pos');
       if (posSelect) {

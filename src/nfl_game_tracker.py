@@ -7,9 +7,20 @@ logger = logging.getLogger(__name__)
 
 
 class TeamGameInfo(dict):
-    """Represents live game progress and status for an NFL team, supporting both attribute and dict access."""
+    """Represents live game progress, minutes elapsed, and redzone status for an NFL team."""
 
-    def __init__(self, team: str, state: str, raw_state: str, clock: str, progress_pct: float, detail: str, period: int = 0):
+    def __init__(
+        self,
+        team: str,
+        state: str,
+        raw_state: str,
+        clock: str,
+        progress_pct: float,
+        detail: str,
+        period: int = 0,
+        minutes_elapsed: float = 0.0,
+        is_redzone: bool = False
+    ):
         super().__init__(
             team=team,
             state=state,
@@ -18,7 +29,9 @@ class TeamGameInfo(dict):
             clock=clock,
             progress_pct=progress_pct,
             detail=detail,
-            period=period
+            period=period,
+            minutes_elapsed=minutes_elapsed,
+            is_redzone=is_redzone
         )
         self.team = team
         self.state = state
@@ -28,10 +41,12 @@ class TeamGameInfo(dict):
         self.progress_pct = progress_pct
         self.detail = detail
         self.period = period
+        self.minutes_elapsed = minutes_elapsed
+        self.is_redzone = is_redzone
 
 
 class NFLGameTracker:
-    """Tracks live NFL game statuses, clocks, and completion percentages."""
+    """Tracks live NFL game statuses, clocks, completion percentages, and red zone states."""
 
     def __init__(self):
         self.client = httpx.AsyncClient(timeout=8.0)
@@ -70,10 +85,19 @@ class NFLGameTracker:
                 period = status.get("period", 0)
                 display_clock = status.get("displayClock", "0:00")
 
-                # Calculate progress percentage (0.0 to 1.0)
+                # Situation (Possession & Red Zone)
+                situation = comp.get("situation", {}) or {}
+                is_redzone_raw = bool(situation.get("isRedZone", False) or situation.get("redZone", False))
+                possession_id = str(situation.get("possession", "")).strip()
+
+                # Calculate progress percentage (0.0 to 1.0) and minutes elapsed (0.0 to 60.0)
+                # Overtime is ignored; regular game is capped at 60.0 minutes.
                 progress_pct = 0.0
+                minutes_elapsed = 0.0
+
                 if state == "post":
                     progress_pct = 1.0
+                    minutes_elapsed = 60.0
                     game_state_str = "FINAL"
                 elif state == "in":
                     # In game: calculate based on quarter and clock
@@ -84,23 +108,36 @@ class NFLGameTracker:
                             clock_sec = int(clock_parts[0]) * 60 + int(clock_parts[1])
                         except ValueError:
                             clock_sec = 0
-                    
+
                     q_elapsed = (15 * 60) - clock_sec
                     quarter_idx = min(max(period - 1, 0), 3)
                     total_sec_elapsed = (quarter_idx * 15 * 60) + max(0, q_elapsed)
-                    progress_pct = min(1.0, max(0.0, total_sec_elapsed / (60.0 * 60.0)))
                     
+                    minutes_elapsed = min(60.0, max(0.0, total_sec_elapsed / 60.0))
+                    progress_pct = min(1.0, max(0.0, minutes_elapsed / 60.0))
+
                     if period == 2 and clock_sec == 0:
                         game_state_str = "HALFTIME"
                     else:
                         game_state_str = "IN_PROGRESS"
                 else:
                     progress_pct = 0.0
+                    minutes_elapsed = 0.0
                     game_state_str = "PRE"
 
                 competitors = comp.get("competitors", [])
                 for team_entry in competitors:
-                    abbr = team_entry.get("team", {}).get("abbreviation", "").upper()
+                    team_obj = team_entry.get("team", {}) or {}
+                    t_id = str(team_entry.get("id", "")).strip()
+                    sub_id = str(team_obj.get("id", "")).strip()
+                    abbr = team_obj.get("abbreviation", "").upper()
+                    if not abbr:
+                        continue
+
+                    # Check if this team currently has possession in the redzone
+                    has_possession = bool(possession_id and (possession_id == t_id or possession_id == sub_id))
+                    team_in_redzone = bool(has_possession and is_redzone_raw)
+
                     # Handle team abbreviation normalizations (e.g. WSH/WAS, JAX/JAC)
                     aliases = [abbr]
                     if abbr == "WSH": aliases.append("WAS")
@@ -116,7 +153,9 @@ class NFLGameTracker:
                             clock=display_clock,
                             progress_pct=progress_pct,
                             detail=detail,
-                            period=period
+                            period=period,
+                            minutes_elapsed=round(minutes_elapsed, 1),
+                            is_redzone=team_in_redzone
                         )
 
             self.team_status_cache = team_lookup
@@ -128,7 +167,7 @@ class NFLGameTracker:
             return self.team_status_cache
 
     def get_team_game_status(self, team_abbr: Optional[str]) -> TeamGameInfo:
-        """Get game progress and status for an NFL team abbreviation."""
+        """Get game progress, minutes elapsed, and redzone status for an NFL team abbreviation."""
         if not team_abbr or team_abbr.upper() in ["FA", "FREE AGENT", "UNK", "NONE"]:
             return TeamGameInfo(
                 team="FA",
@@ -137,7 +176,9 @@ class NFLGameTracker:
                 detail="No Game",
                 period=0,
                 clock="",
-                progress_pct=0.0
+                progress_pct=0.0,
+                minutes_elapsed=0.0,
+                is_redzone=False
             )
 
         abbr = team_abbr.upper().strip()
@@ -151,7 +192,9 @@ class NFLGameTracker:
             detail="Scheduled",
             period=0,
             clock="",
-            progress_pct=0.0
+            progress_pct=0.0,
+            minutes_elapsed=0.0,
+            is_redzone=False
         )
 
     # Alias for state engine compatibility

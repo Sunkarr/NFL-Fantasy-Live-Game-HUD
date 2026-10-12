@@ -48,104 +48,113 @@ class NFLGameHUD {
     this.cachedMatchups = [];
 
     // Audio & Sound FX System
-    this.soundEnabled = localStorage.getItem('nfl_hud_sound_enabled') !== 'false';
+    this.soundEnabled = localStorage.getItem('nfl_hud_sound_enabled') === 'true';
     this.soundTheme = localStorage.getItem('nfl_hud_sound_theme') || 'fox_horn';
     this.audioCtx = null;
     this.toastTimer = null;
-    
+
+    // DOM Elements
     this.dom = {
       topBar: document.getElementById('hud-top-bar'),
       weekTag: document.getElementById('hud-week-tag'),
-      soundToggleBtn: document.getElementById('hud-sound-toggle'),
+      soundToggleBtn: document.getElementById('hud-sound-toggle-btn'),
       soundIcon: document.getElementById('sound-icon'),
-      toast: document.getElementById('hud-toast'),
-      matchupsContainer: document.getElementById('matchups-container'),
-      highlightContainer: document.getElementById('highlight-container')
+      matchupsContainer: document.getElementById('hud-matchups-container') || document.getElementById('matchups-container'),
+      highlightContainer: document.getElementById('hud-highlight-container') || document.getElementById('highlight-container'),
+      toast: document.getElementById('hud-toast')
     };
 
+    this.init();
+  }
+
+  init() {
     this.initSoundControls();
-    this.initWebSocket();
     this.initKeyboardShortcuts();
+    this.connectWebSocket();
+    this.fetchInitialState();
+
+    // Pause conveyor belt / ticker animations on hover so users can inspect
+    if (this.dom.matchupsContainer) {
+      this.dom.matchupsContainer.addEventListener('mouseenter', () => { this.isPaused = true; });
+      this.dom.matchupsContainer.addEventListener('mouseleave', () => { this.isPaused = false; });
+    }
   }
 
   // =========================================================================
-  // WebSocket Connection & Handling
+  // WebSocket & Real-Time Sync
   // =========================================================================
-  initWebSocket() {
+  connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host || 'localhost:8080';
-    const wsUrl = `${protocol}//${host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
 
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
+      this.ws.send(JSON.stringify({ type: 'REQUEST_STATE' }));
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        this.handleSocketMessage(msg);
+      } catch (e) {
+        console.error('Failed to parse WS message:', e);
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.scheduleReconnect();
+    };
+
+    this.ws.onerror = (err) => {
+      console.warn('WebSocket encountered error:', err);
+    };
+  }
+
+  scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectDelay * Math.pow(1.3, this.reconnectAttempts), 15000);
+    setTimeout(() => this.connectWebSocket(), delay);
+  }
+
+  async fetchInitialState() {
     try {
-      this.ws = new WebSocket(wsUrl);
-
-      this.ws.onopen = () => {
-        this.reconnectAttempts = 0;
-        this.heartbeatInterval = setInterval(() => {
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'PING' }));
-          }
-        }, 15000);
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleMessage(data);
-        } catch (e) {
-          console.error('[HUD] Failed to parse WS message:', e);
-        }
-      };
-
-      this.ws.onclose = () => {
-        clearInterval(this.heartbeatInterval);
-        this.attemptReconnect();
-      };
-
-      this.ws.onerror = (err) => {
-        console.warn('[HUD] WebSocket error:', err);
-      };
+      const res = await fetch('/api/state');
+      if (res.ok) {
+        const data = await res.json();
+        this.renderState(data);
+      }
     } catch (e) {
-      console.error('[HUD] WebSocket init failed:', e);
-      this.attemptReconnect();
+      console.warn('Initial state fetch failed:', e);
     }
   }
 
-  attemptReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = Math.min(10000, this.reconnectDelay * Math.pow(1.2, this.reconnectAttempts));
-      setTimeout(() => this.initWebSocket(), delay);
-    }
-  }
-
-  handleMessage(msg) {
+  handleSocketMessage(msg) {
     switch (msg.type) {
       case 'INITIAL_STATE':
       case 'UPDATE_MATCHUPS':
         this.renderState(msg.state);
         break;
-      case 'UPDATE_DISPLAY_SETTINGS':
-        if (msg.settings) {
-          this.applyDisplaySettings(msg.settings);
-        }
-        break;
       case 'PUSH_HIGHLIGHT':
         this.enqueueHighlight(msg.highlight);
         break;
-      case 'PONG':
+      case 'UPDATE_DISPLAY_SETTINGS':
+        this.applyDisplaySettings(msg.settings);
         break;
-      default:
+      case 'PONG':
         break;
     }
   }
 
   applyDisplaySettings(settings) {
-    let speedChanged = false;
+    if (!settings) return;
     let modeChanged = false;
+    let speedChanged = false;
 
     if (settings.mode) {
-      const newMode = (settings.mode === 'paged') ? 'step' : settings.mode;
+      const newMode = settings.mode === 'paged' ? 'step' : settings.mode;
       if (newMode !== this.displayMode) {
         this.displayMode = newMode;
         modeChanged = true;
@@ -179,7 +188,7 @@ class NFLGameHUD {
       this.tickerSpeed = settings.ticker_speed;
     }
     
-    // Sync sound if server explicitly passed it and client hasn't pinned it
+    // Sync sound if server explicitly passed it
     if (typeof settings.sound_enabled === 'boolean') {
       if (this.soundEnabled !== settings.sound_enabled) {
         this.soundEnabled = settings.sound_enabled;
@@ -194,7 +203,6 @@ class NFLGameHUD {
     
     if (speedChanged) {
       this.restartIdleTimer();
-      // If step shift mode is active, restart interval with new timing
       if (this.renderedMode === 'step' && this.stepTimer) {
         this.resetMatchupLayout(this.cachedMatchups);
       }
@@ -304,11 +312,25 @@ class NFLGameHUD {
 
       const teamA = m.team_a;
       const teamB = m.team_b;
+      const colorA = teamA && teamA.color_accent ? teamA.color_accent : '#00f0ff';
+      const colorB = teamB && teamB.color_accent ? teamB.color_accent : '#ff00aa';
+
       const scoreA = teamA ? teamA.points : 0;
       const scoreB = teamB ? teamB.points : 0;
       const totalScore = scoreA + scoreB;
-      const pctA = totalScore > 0 ? ((scoreA / totalScore) * 100).toFixed(1) : 50;
-      const pctB = (100 - pctA).toFixed(1);
+      const pctScoreA = totalScore > 0 ? ((scoreA / totalScore) * 100).toFixed(1) : 50;
+      const pctScoreB = (100 - pctScoreA).toFixed(1);
+
+      // Minutes calculation (0 to 50% for each team, meeting at center)
+      const minPlayedA = teamA && teamA.minutes_played ? teamA.minutes_played : 0;
+      const totalMinA = teamA && teamA.total_minutes ? teamA.total_minutes : 540;
+      const minPctA = totalMinA > 0 ? (minPlayedA / totalMinA) : 0;
+      const widthMinA = (Math.min(1.0, Math.max(0.0, minPctA)) * 50).toFixed(1);
+
+      const minPlayedB = teamB && teamB.minutes_played ? teamB.minutes_played : 0;
+      const totalMinB = teamB && teamB.total_minutes ? teamB.total_minutes : 540;
+      const minPctB = totalMinB > 0 ? (minPlayedB / totalMinB) : 0;
+      const widthMinB = (Math.min(1.0, Math.max(0.0, minPctB)) * 50).toFixed(1);
 
       const scoreElA = card.querySelector('.score-a');
       const scoreElB = card.querySelector('.score-b');
@@ -350,10 +372,27 @@ class NFLGameHUD {
         }
       }
 
+      // Update Red Zone indicators
+      const rzSlotA = card.querySelector('.rz-slot-a');
+      const rzSlotB = card.querySelector('.rz-slot-b');
+      if (rzSlotA) rzSlotA.innerHTML = this.renderRedZoneIndicator(teamA, colorA);
+      if (rzSlotB) rzSlotB.innerHTML = this.renderRedZoneIndicator(teamB, colorB);
+
+      // Update Bar 1: Score distribution
       const barA = card.querySelector('.score-bar-left');
       const barB = card.querySelector('.score-bar-right');
-      if (barA) barA.style.width = `${pctA}%`;
-      if (barB) barB.style.width = `${pctB}%`;
+      if (barA) barA.style.width = `${pctScoreA}%`;
+      if (barB) barB.style.width = `${pctScoreB}%`;
+
+      // Update Bar 2: Minutes played (meeting at center)
+      const minBarA = card.querySelector('.minutes-bar-left');
+      const minBarB = card.querySelector('.minutes-bar-right');
+      if (minBarA) minBarA.style.width = `${widthMinA}%`;
+      if (minBarB) minBarB.style.width = `${widthMinB}%`;
+      const minBar = card.querySelector('.minutes-bar');
+      if (minBar) {
+        minBar.title = `Game Time: ${Math.round(minPlayedA)}m / ${totalMinA}m (${Math.round(minPctA * 100)}%) vs ${Math.round(minPlayedB)}m / ${totalMinB}m (${Math.round(minPctB * 100)}%)`;
+      }
     });
   }
 
@@ -406,63 +445,60 @@ class NFLGameHUD {
       if (this.isPaused || isShifting) return;
       isShifting = true;
 
-      const firstCard = track.querySelector('.matchup-card');
-      if (!firstCard) {
-        isShifting = false;
-        return;
-      }
-
+      const firstCard = track.children[0];
+      const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 0;
       const gap = 12;
-      const shiftDistance = firstCard.offsetWidth + gap;
+      const shiftDistance = cardWidth + gap;
 
       track.classList.add('sliding');
       track.style.transform = `translate3d(-${shiftDistance}px, 0, 0)`;
 
-      setTimeout(() => {
+      const onTransitionEnd = () => {
+        track.removeEventListener('transitionend', onTransitionEnd);
         this.stepIndex = (this.stepIndex + 1) % count;
         populateTrack(this.stepIndex);
         isShifting = false;
-      }, 660);
+      };
 
+      track.addEventListener('transitionend', onTransitionEnd);
     }, this.stepInterval);
   }
 
-  // 3. Glitch-Free Continuous Ticker (Seamless Infinite Marquee)
+  // 3. Ticker / Continuous Rolling Marquee Mode
   renderContinuousTicker(matchups) {
     const container = this.dom.matchupsContainer;
     container.className = 'matchups-container ticker-mode';
     container.innerHTML = '';
 
-    if (matchups.length === 0) return;
-
+    const count = matchups.length;
     const track = document.createElement('div');
     track.className = 'ticker-track';
-
-    const doubleList = [...matchups, ...matchups];
-    doubleList.forEach((m) => {
-      const card = this.createMatchupCardElement(m);
-      card.classList.add('ticker-card');
-      track.appendChild(card);
-    });
-
     container.appendChild(track);
 
+    const repetitions = count < 6 ? 4 : 2;
+    for (let r = 0; r < repetitions; r++) {
+      matchups.forEach((m) => {
+        const card = this.createMatchupCardElement(m);
+        card.classList.add('ticker-card');
+        track.appendChild(card);
+      });
+    }
+
     this.tickerOffset = 0;
-    this.lastTimestamp = null;
+    this.lastTimestamp = performance.now();
 
-    const animate = (timestamp) => {
-      if (!this.lastTimestamp) this.lastTimestamp = timestamp;
-      const delta = (timestamp - this.lastTimestamp) / 1000.0;
-      this.lastTimestamp = timestamp;
+    const animate = (now) => {
+      if (!this.lastTimestamp) this.lastTimestamp = now;
+      const delta = (now - this.lastTimestamp) / 1000;
+      this.lastTimestamp = now;
 
-      const singleSetWidth = track.scrollWidth / 2;
-
-      if (!this.isPaused && singleSetWidth > 0) {
-        this.tickerOffset += this.tickerSpeed * delta;
-        if (this.tickerOffset >= singleSetWidth) {
-          this.tickerOffset = this.tickerOffset % singleSetWidth;
+      if (!this.isPaused) {
+        this.tickerOffset -= this.tickerSpeed * delta;
+        const singleSetWidth = track.scrollWidth / repetitions;
+        if (Math.abs(this.tickerOffset) >= singleSetWidth) {
+          this.tickerOffset += singleSetWidth;
         }
-        track.style.transform = `translate3d(-${this.tickerOffset.toFixed(2)}px, 0, 0)`;
+        track.style.transform = `translate3d(${this.tickerOffset}px, 0, 0)`;
       }
 
       this.tickerAnimationId = requestAnimationFrame(animate);
@@ -471,7 +507,7 @@ class NFLGameHUD {
     this.tickerAnimationId = requestAnimationFrame(animate);
   }
 
-  // Helper to create single matchup card DOM with glowing manager colors
+  // Helper to create single matchup card DOM with glowing manager colors & dual progress bars
   createMatchupCardElement(m) {
     const card = document.createElement('div');
     card.className = 'matchup-card';
@@ -487,17 +523,34 @@ class NFLGameHUD {
     const scoreA = teamA ? teamA.points : 0;
     const scoreB = teamB ? teamB.points : 0;
     const totalScore = scoreA + scoreB;
-    const pctA = totalScore > 0 ? ((scoreA / totalScore) * 100).toFixed(1) : 50;
-    const pctB = (100 - pctA).toFixed(1);
+    const pctScoreA = totalScore > 0 ? ((scoreA / totalScore) * 100).toFixed(1) : 50;
+    const pctScoreB = (100 - pctScoreA).toFixed(1);
+
+    // Minutes calculation (0 to 50% for each team, meeting at center)
+    const minPlayedA = teamA && teamA.minutes_played ? teamA.minutes_played : 0;
+    const totalMinA = teamA && teamA.total_minutes ? teamA.total_minutes : 540;
+    const minPctA = totalMinA > 0 ? (minPlayedA / totalMinA) : 0;
+    const widthMinA = (Math.min(1.0, Math.max(0.0, minPctA)) * 50).toFixed(1);
+
+    const minPlayedB = teamB && teamB.minutes_played ? teamB.minutes_played : 0;
+    const totalMinB = teamB && teamB.total_minutes ? teamB.total_minutes : 540;
+    const minPctB = totalMinB > 0 ? (minPlayedB / totalMinB) : 0;
+    const widthMinB = (Math.min(1.0, Math.max(0.0, minPctB)) * 50).toFixed(1);
 
     const flashA = this.checkScoreFlash(teamA ? teamA.roster_id : null, scoreA);
     const flashB = this.checkScoreFlash(teamB ? teamB.roster_id : null, scoreB);
 
     const leaderRosterId = m.leader_roster_id;
 
+    const rzHtmlA = this.renderRedZoneIndicator(teamA, colorA);
+    const rzHtmlB = this.renderRedZoneIndicator(teamB, colorB);
+
     card.innerHTML = `
       <div class="matchup-teams-row">
-        <img class="team-avatar" src="${teamA ? teamA.avatar_url : ''}" alt="${teamA ? teamA.manager_name : ''}" title="${teamA ? teamA.manager_name : ''}" style="border-color: ${colorA}; box-shadow: 0 0 8px ${this.hexToRgba(colorA, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+        <div class="team-side left">
+          <img class="team-avatar avatar-a" src="${teamA ? teamA.avatar_url : ''}" alt="${teamA ? teamA.manager_name : ''}" title="${teamA ? teamA.manager_name : ''}" style="border-color: ${colorA}; box-shadow: 0 0 8px ${this.hexToRgba(colorA, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+          <div class="rz-slot-a">${rzHtmlA}</div>
+        </div>
 
         <div class="matchup-center-scores">
           <span class="team-score score-a ${leaderRosterId === (teamA && teamA.roster_id) ? 'leading' : ''} ${flashA ? 'score-flash' : ''}">
@@ -509,16 +562,52 @@ class NFLGameHUD {
           </span>
         </div>
 
-        <img class="team-avatar" src="${teamB ? teamB.avatar_url : ''}" alt="${teamB ? teamB.manager_name : ''}" title="${teamB ? teamB.manager_name : ''}" style="border-color: ${colorB}; box-shadow: 0 0 8px ${this.hexToRgba(colorB, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+        <div class="team-side right">
+          <div class="rz-slot-b">${rzHtmlB}</div>
+          <img class="team-avatar avatar-b" src="${teamB ? teamB.avatar_url : ''}" alt="${teamB ? teamB.manager_name : ''}" title="${teamB ? teamB.manager_name : ''}" style="border-color: ${colorB}; box-shadow: 0 0 8px ${this.hexToRgba(colorB, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+        </div>
       </div>
 
-      <div class="score-progress-bar">
-        <div class="score-bar-left" style="width: ${pctA}%; background: ${colorA}; box-shadow: 0 0 8px ${this.hexToRgba(colorA, 0.75)};"></div>
-        <div class="score-bar-right" style="width: ${pctB}%; background: ${colorB}; box-shadow: 0 0 8px ${this.hexToRgba(colorB, 0.75)};"></div>
+      <div class="matchup-bars-group">
+        <div class="matchup-bar score-bar" title="Points: ${scoreA.toFixed(1)} vs ${scoreB.toFixed(1)}">
+          <div class="score-bar-left" style="width: ${pctScoreA}%; background: ${colorA}; box-shadow: 0 0 6px ${this.hexToRgba(colorA, 0.7)};"></div>
+          <div class="score-bar-right" style="width: ${pctScoreB}%; background: ${colorB}; box-shadow: 0 0 6px ${this.hexToRgba(colorB, 0.7)};"></div>
+        </div>
+
+        <div class="matchup-bar minutes-bar" title="Game Time: ${Math.round(minPlayedA)}m / ${totalMinA}m (${Math.round(minPctA * 100)}%) vs ${Math.round(minPlayedB)}m / ${totalMinB}m (${Math.round(minPctB * 100)}%)">
+          <div class="minutes-bar-track">
+            <div class="minutes-bar-left" style="width: ${widthMinA}%;"></div>
+            <div class="minutes-center-line"></div>
+            <div class="minutes-bar-right" style="width: ${widthMinB}%;"></div>
+          </div>
+        </div>
       </div>
     `;
 
     return card;
+  }
+
+  // Render Red Zone alert indicator: 1-3 glowing dots or '3+' badge in manager accent color
+  renderRedZoneIndicator(team, color) {
+    if (!team || !team.redzone_count || team.redzone_count <= 0) {
+      return '';
+    }
+    const count = team.redzone_count;
+    const players = (team.redzone_players || []).join(', ');
+    const titleText = `Red Zone: ${players || `${count} player${count > 1 ? 's' : ''}`}`;
+    const glow = this.hexToRgba(color, 0.85);
+
+    if (count <= 3) {
+      let dotsHtml = '';
+      for (let i = 0; i < count; i++) {
+        dotsHtml += `<span class="rz-dot" style="background: ${color}; box-shadow: 0 0 6px ${glow};"></span>`;
+      }
+      return `<div class="rz-alert-container" title="${titleText}">${dotsHtml}</div>`;
+    } else {
+      const bg = this.hexToRgba(color, 0.22);
+      const border = this.hexToRgba(color, 0.7);
+      return `<div class="rz-alert-container" title="${titleText}"><span class="rz-badge-more" style="background: ${bg}; color: ${color}; border: 1px solid ${border}; box-shadow: 0 0 6px ${glow};">3+</span></div>`;
+    }
   }
 
   checkScoreFlash(rosterId, currentScore) {
@@ -561,7 +650,6 @@ class NFLGameHUD {
 
     const hasMvpCard = this.dom.highlightContainer && !!this.dom.highlightContainer.querySelector('.mvp-pill');
 
-    // Immediately swap to MVP card if a highlight just finished or no MVP is showing
     if (!hasMvpCard || forceImmediate) {
       this.stopIdleSpotlightCycle();
       if (this.currentSpotlightIndex >= activeMVPs.length) {
@@ -605,11 +693,10 @@ class NFLGameHUD {
     } else {
       this.updateQueueBadge();
       
-      // Jiggle the currently displayed highlight box to signal a new big play in queue!
       const activeCard = this.dom.highlightContainer.querySelector('.spotlight-pill.live-highlight');
       if (activeCard) {
         activeCard.classList.remove('jiggling');
-        void activeCard.offsetWidth; // Force CSS reflow to retrigger animation
+        void activeCard.offsetWidth;
         activeCard.classList.add('jiggling');
       }
     }
@@ -631,14 +718,13 @@ class NFLGameHUD {
   playNextHighlight() {
     if (this.highlightQueue.length === 0) {
       this.currentHighlight = null;
-      this.startIdleSpotlightCycle(true); // Seamlessly return to MVP cards the instant timer finishes
+      this.startIdleSpotlightCycle(true);
       return;
     }
 
     const hl = this.highlightQueue.shift();
     this.currentHighlight = hl;
     
-    // Play authentic NFL broadcast fanfare sound FX!
     this.playNFLFanfareSound();
 
     const durationSec = this.getSpeedDurationSeconds();
@@ -656,7 +742,6 @@ class NFLGameHUD {
     if (!name) return '';
     const pos = (position || '').toUpperCase();
     
-    // For defenses, display only the 3-letter (or 2-3 char) NFL team code
     if (pos === 'DEF') {
       if (nflTeam && nflTeam.trim().length > 0) {
         return nflTeam.trim().toUpperCase();
@@ -684,7 +769,6 @@ class NFLGameHUD {
       return upperName.replace(/DEFENSE|DEF/i, '').trim().substring(0, 3).toUpperCase();
     }
 
-    // For players: Jersey name format (First initial. Surname [suffix])
     const parts = name.trim().split(/\s+/);
     if (parts.length <= 1) return name;
 
@@ -765,14 +849,12 @@ class NFLGameHUD {
   renderIdleSpotlight(spotlight) {
     if (!this.dom.highlightContainer || !spotlight) return;
 
-    // Strict filter: only players with non-zero fpts
     const pts = Number(spotlight.points) || 0;
     if (Math.round(pts * 100) === 0) return;
 
     const isFA = spotlight.is_free_agent;
     const accentColor = spotlight.color_accent || (isFA ? '#94a3b8' : '#00f0ff');
     
-    // Crown emoji for leader (rank 1), other than that only show rank, position, owner, fpts (no additional labels etc.)
     const isLeader = spotlight.rank === 1;
     const leaderCrown = isLeader ? '👑 ' : '';
     const rankPart = spotlight.rank ? `#${spotlight.rank} ` : '';
@@ -849,12 +931,10 @@ class NFLGameHUD {
     const toastMsg = this.soundEnabled ? '🔊 Sound FX Enabled' : '🔇 Sound FX Muted';
     this.showToast(toastMsg);
 
-    // If unmuting, play a subtle chime preview
     if (this.soundEnabled) {
       this.playPreviewChirp();
     }
 
-    // Sync with backend API
     fetch('/api/settings/sound', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -918,14 +998,12 @@ class NFLGameHUD {
   playNFLFanfareSound() {
     if (!this.soundEnabled) return;
 
-    // 1. Try playing pre-generated broadcast WAV
     try {
       const audio = new Audio(this.getSoundUrl());
       audio.volume = 0.85;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Fallback to Web Audio API synthesizer
           this.synthesizeFanfare();
         });
         return;
@@ -955,7 +1033,6 @@ class NFLGameHUD {
       masterGain.gain.setValueAtTime(0.4, now);
       masterGain.connect(ctx.destination);
 
-      // Sub-bass stadium kick impact
       const kickOsc = ctx.createOscillator();
       const kickGain = ctx.createGain();
       kickOsc.type = 'sine';
@@ -968,7 +1045,6 @@ class NFLGameHUD {
       kickOsc.start(now);
       kickOsc.stop(now + 0.28);
 
-      // Fanfare Brass Sequence: G4 -> C5 -> E5 -> Chord (C5, E5, G5, C6)
       const notes = [
         { start: 0.00, end: 0.12, freqs: [392.00], vol: 0.75 },
         { start: 0.12, end: 0.24, freqs: [523.25], vol: 0.80 },
@@ -1014,7 +1090,6 @@ class NFLGameHUD {
         });
       });
 
-      // Chime sparkle at t=0.36
       const cTime = now + 0.36;
       [2093, 3136].forEach((freq) => {
         const chimeOsc = ctx.createOscillator();

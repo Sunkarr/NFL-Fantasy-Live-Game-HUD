@@ -15,6 +15,8 @@ class PlayerInfo(BaseModel):
     game_status: Optional[str] = "PRE"  # PRE, IN_PROGRESS, HALFTIME, FINAL
     game_clock: Optional[str] = ""
     game_progress_pct: float = 0.0      # 0.0 - 1.0
+    minutes_played: float = 0.0         # 0.0 - 60.0
+    is_redzone: bool = False
 
 
 class TeamScore(BaseModel):
@@ -29,7 +31,11 @@ class TeamScore(BaseModel):
     starters_played_count: int = 0
     starters_in_progress_count: int = 0
     starters_yet_to_play_count: int = 9
-    time_played_pct: float = 0.0
+    minutes_played: float = 0.0         # Cumulative minutes completed by starters
+    total_minutes: float = 540.0        # Total maximum starter minutes (starters_count * 60)
+    time_played_pct: float = 0.0        # 0.0 - 100.0
+    redzone_count: int = 0              # Number of active offensive starters currently in NFL Red Zone
+    redzone_players: List[str] = Field(default_factory=list)
     is_user_team: bool = False
     color_accent: str = "#00f0ff"
     starters_detail: List[PlayerInfo] = Field(default_factory=list)
@@ -88,7 +94,7 @@ class DisplaySettings(BaseModel):
     step_interval_seconds: int = 6
     ticker_speed: int = 35  # pixels per second
     sound_enabled: bool = True
-    sound_theme: Literal["fox_horn", "redzone", "td_siren", "brass_fanfare"] = "fox_horn" 
+    sound_theme: Literal["fox_horn", "redzone", "td_siren", "brass_fanfare"] = "fox_horn"
 
 
 class HUDState(BaseModel):

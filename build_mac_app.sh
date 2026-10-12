@@ -83,4 +83,13 @@ chmod +x "${MACOS_DIR}/${APP_NAME}"
 codesign -s - --force --deep "${BUNDLE_DIR}"
 
 echo "✅ App bundle created successfully: ${BUNDLE_DIR} (v${APP_VERSION})"
+
+# Automatically sync to /Applications if installed there (e.g. pinned in macOS Dock)
+if [ -d "/Applications/${APP_NAME}.app" ]; then
+    echo "🔄 Updating installed app in /Applications/${APP_NAME}.app..."
+    rm -rf "/Applications/${APP_NAME}.app"
+    cp -R "${BUNDLE_DIR}" "/Applications/${APP_NAME}.app"
+    echo "✅ /Applications/${APP_NAME}.app updated successfully!"
+fi
+
 echo "🚀 You can launch it with: open \"${BUNDLE_DIR}\""

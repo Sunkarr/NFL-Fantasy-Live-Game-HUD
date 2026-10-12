@@ -47,8 +47,11 @@ Wenn du den Stream im Browser schaust (z. B. **NFL Game Pass (DAZN), RTL+, YouTu
 Wenn du den Stream über eine separate App oder einen beliebigen Video-Player schaust:
 * Die native Swift App (`NFL Fantasy HUD.app`) öffnet ein rahmenloses, transparentes Floating Panel am oberen Bildschirmrand:
   - **Always-on-Top Floating Panel** (Level `.screenSaver`): Schwebt dauerhaft über jedem Vollbild-Stream (auch über anderen Spaces & Vollbild-Apps).
-  - **100% Click-Through**: Maus- und Klick-Events gehen nahtlos durch zum Video-Player darunter (Play/Pause, Scrubbing, Lautstärke).
+  - **100% Click-Through & Intelligente Hover-Transparenz**:
+    - Maus- und Klick-Events gehen nahtlos durch (`ignoresMouseEvents`), sodass Browser-Tabs und Video-Player darunter uneingeschränkt klickbar sind.
+    - **Ultra-Fade bei Cursor-Hover**: Befindet sich der Mauszeiger im oberen HUD-Bereich, blendet sich das Overlay automatisch sanft auf **8% Deckkraft (0.08 Alpha / 92% transparent)** ab. Man sieht Browser-Tabs, Adresszeile und Menüs darunter glasklar und kann sie direkt bedienen, ohne das HUD per `Cmd+H` ausschalten zu müssen. Verlässt die Maus den oberen Bereich, kehrt das HUD sofort zu 100% Opacity zurück.
   - **Multi-Monitor & Beamer Support**: Live-Auswahl des Ziel-Bildschirms (z. B. Beamer, externer TV, AirPlay-Display oder MacBook-Display) im Setup-Dialog und jederzeit per Menüleiste (`🖥️ Target Display`).
+  - **Automatischer Installations-Sync**: `./build_mac_app.sh` aktualisiert automatisch bestehende Installationen in `/Applications/NFL Fantasy HUD.app`, sodass im Dock verknüpfte Apps stets auf dem exakt selben, neuesten Stand sind.
   - **Shortcuts & Audio-Steuerung**: **`Cmd+M`** schaltet Highlight-Sound-Effekte um, **`Cmd+H`** blendet das Overlay ein/aus (und dockt es neu an den Monitor an), **`Cmd+S`** öffnet den Setup-Dialog.
   - **Build-Kommando**: `./build_mac_app.sh` kompiliert die native Apple Silicon App direkt und signiert das Bundle ad-hoc.
 
@@ -83,17 +86,37 @@ Wenn du den Stream über OBS Studio capturest oder streamst:
 
 ## 📊 3. Detaillierte Komponenten-Spezifikation (Alles im Top-Band)
 
-### A. 3 League Matchup Kacheln (Links & Mitte, ca. 75% Gesamtbreite)
-Jedes Matchup der 6er-Liga hat seine eigene kompakte Kachel:
+### A. League Matchup Kacheln (Links & Mitte, ca. 75% Gesamtbreite)
+Jedes Matchup der Liga hat seine eigene kompakte Kachel mit folgenden Elementen:
 
 1. **Manager & Punktestände**:
-   - Manager-Name (z. B. `Team 1`) mit Teamfarbe als linker Akzentstreifen.
-   - Live-Punkte in fetter Typografie (z. B. **94.2** vs. **88.4**).
-2. **Score Progress Bar (Balken 1 - Punktevergleich)**:
-   - Kompakter Dual-Balken, der die Führung zwischen den beiden Managern visualisiert.
-3. **Minutes Played / Game Time Progress Bar (Balken 2 - Zeitfortschritt)**:
-   - Visualisiert, wie viel Spielzeit die aktiven Starter des Teams bereits absolviert haben vs. wie viele Spieler noch spielen müssen (z. B. `7/9 Spieler fertig` = 78% Time Played).
-   - Verhindert Fehlinterpretationen (z. B. wenn Team A führt, aber Team B noch 4 Starter im Spätspiel hat).
+   - Manager-Avatar mit Neon-Glow-Border in der Manager-Akzentfarbe.
+   - Live-Punkte in fetter Typografie (`104.2 - 98.6`), mit Führend-Highlighting (`.leading`) und Score-Flash-Animation bei Punktegewinnen.
+2. **Dual Progress Bars (Zwei Balken untereinander im Matchup)**:
+   - **Balken 1: Punkteverteilung (Score Ratio — Hauptfokus)**:
+     - Zeigt das Verhältnis der erzielten Fantasy-Punkte zwischen Team A (links) und Team B (rechts).
+     - Hauptaugenmerk der Kachel: Kräftige, leuchtende Farben der beiden Manager mit Glow-Schatten (Höhe: 3.5px).
+   - **Balken 2: Gespielte Spielminuten (Minutes Played Bar — Beamer-optimiertes Silber-Grau)**:
+     - Gestaltet in hellem, klarem Silber-Grau (`#cbd5e1`, 0.95 Opacity, Höhe: 2.5px) mit dezentem silbernem Kontrast-Schein (`rgba(203, 213, 225, 0.4)`), perfekt lesbar auf Beamern und Projektoren, ohne mit den bunten Managerfarben der Score-Bar zu konkurrieren.
+     - Beide Balken starten bei 0% an den jeweiligen Außenrändern (Team A am linken Rand, Team B am rechten Rand).
+     - Team A wächst nach rechts (Richtung 50% Mitte), Team B wächst nach links (Richtung 50% Mitte).
+     - Bei 100% absolvierter Spielzeit (alle 9 Starter haben 60 Minuten gespielt = 540 Gesamt-Spielminuten pro Team) treffen sich die beiden Balken exakt an der 1px-Mittellinie bei 50%.
+     - Overtime wird ignoriert (Deckelung auf max. 60.0 Min pro Spieler).
+     - Verhindert Fehlinterpretationen bei Führungen (z. B. wenn Team A führt, aber Team B noch 4 Starter im Spätspiel hat).
+3. **Red Zone Alert (Avatar Pips — Bleibt aktiv bis Drive-Ende & großzügiger Abstand)**:
+   - Befindet sich mindestens ein offensiver Starter eines Fantasy-Teams (QB, RB, WR, TE, K, FLEX) aktuell in der gegnerischen Redzone (Ballbesitz an/innerhalb der 20-Yard-Linie des Gegners):
+     - **Großzügiger Avatar-Abstand**: 10px Gap + 2px Margin verhindern jegliches Gedränge zum Avatar-Glow-Border und geben den Dots einen sauberen, aufgeräumten Look.
+     - **1 Spieler**: 1 leuchtender Punkt (`.rz-dot`) in der zugehörigen Fantasy-Manager-Farbe neben dem Avatar.
+     - **2 Spieler**: 2 leuchtende Punkte.
+     - **3 Spieler**: 3 leuchtende Punkte.
+     - **4+ Spieler**: Ein kompaktes, pulsierendes `3+` Badge (`.rz-badge-more`) in der Managerfarbe (`@keyframes rz-dot-pulse`).
+     - **Dauer**: Bleibt so lange sichtbar, wie das Team im Ballbesitz in der Red Zone ist (im Live-Betrieb bis Drive-Ende; im Admin Dashboard persistent gespeichert, bis die Punkte geändert oder per Reset zurückgesetzt werden).
+     - **0 Spieler**: Unsichtbar/ausgeblendet.
+4. **NFL IRL Trades & In-Season Wechsel (24h Auto-Sync)**:
+   - Die Sleeper-Spieler-Datenbank besitzt eine 24-Stunden-Gültigkeit (`CACHE_TTL_SECONDS = 86400`).
+   - Spielerwechsel, NFL Trades und Free-Agent-Signings in der echten NFL werden automatisch mindestens einmal alle 24h synchronisiert.
+   - Garantiert, dass die Red-Zone- und Minuten-Berechnungen immer das aktuelle echte NFL-Team des Spielers berücksichtigen.
+   - Manueller Sofort-Sync im Admin Dashboard jederzeit per Klick möglich.
 
 ---
 
@@ -112,53 +135,44 @@ Das Highlight-Segment ist **nahtlos in das rechte Ende der oberen Leiste integri
     - 🎯 **Field Goal** (`🎯 FIELD GOAL`): Weite Kicks und Field Goals ($\ge 5.0$ FPTS) tragen die Zielscheibe und das Label `FIELD GOAL`.
     - 🛡️ **Defense Stop** (`🛡️ DEF STOP`): Wichtige Turnover, Fumble Recoveries oder Safeties ohne TD werden mit dem Schild-Icon als `DEF STOP` markiert.
   - **Zusätzliches Flammen-Icon bei Monster-Plays ($\ge 10.0$ FPTS)**: Erzielt eine Einzelaktion 10 oder mehr Fantasy-Punkte (z. B. 75-Yard-TD-Bombe oder 80-Yard-Monster-Run), wird automatisch ein zusätzliches Flammen-Icon (`🔥`) hinzugefügt (z. B. `🏈🔥 TOUCHDOWN` bzw. `⚡🔥 BIG PLAY`).
-  - **Fokus auf Spielzug & kein abgeschnittener Manager-Name**: Auf die Anzeige des Fantasy-Teamnamens im Highlight-Tag (z. B. bisher `· WETSPROBLEM` bzw. unschön abgeschnitten `· WETS`) wird verzichtet. Die Team-Zugehörigkeit wird bereits zu 100% intuitiv über den Farbcode der Kachel (Rahmen, Avatar-Glow, Score-Badge, Timer-Balken) transportiert. Der Tag zeigt dadurch geräumig, sauber und ungekürzt nur den Spielzug-Typ (z. B. `🏈 TOUCHDOWN`, `⚡ BIG PLAY`, `🎯 FIELD GOAL`, `🛡️ DEF STOP`).
-* **Authentischer NFL Broadcast Sound FX**:
-  - Fanfaren-Akkorde (G4, C5, E5, C-Dur Akkord mit Obertönen), Sub-Bass Stadion-Kick-Impact und Glockenspiel-Sparkle Chime.
-  - Ausgeliefert als hochauflösendes Broadcast-Audio (`/static/sounds/nfl_highlight.wav`) mit latenzfreiem Web Audio API Synthesizer Fallback.
-* **Clean Stream Overlay & Sound-Steuerung im Welcome Dialogue**:
-  - **Ultra-Clean Top Bar**: Das Overlay verzichtet auf störende Lautsprecher-Buttons im Live-Stream, um ein 100% broadcast-reifes Aussehen zu garantieren.
-  - **Welcome & Setup Dialog**: Sound wird komfortabel vor dem Start im macOS Welcome Dialogue per Checkbox aktiviert/deaktiviert (`[x] Enable Highlight Audio FX on Big Plays`).
-  - **Auswahl aus 4 NFL Sound Themes**: Der Nutzer kann im Setup Dialogue und Dashboard direkt zwischen 4 authentischen Broadcast-Sounds wählen und sie per `▶ Preview` vorhören:
-    1. 🏈 **NFL on FOX / Stadium Horn** (`fox_horn` - Standard): Wuchtiger Brass-Stab, satter 808-Subkick und Stadion-Atmosphäre (kein Eishockey-Orgelklang!).
-    2. ⚡ **NFL RedZone Alert** (`redzone`): Moderner elektronischer Alert mit Kristall-Chimes, Synth-Riser und Bass-Drop.
-    3. 🚨 **Touchdown Siren & Horn** (`td_siren`): Klassisches Stadion-Nebelhorn mit TD-Sirenen-Alert.
-    4. 🎺 **Classic Arena Fanfare** (`brass_fanfare`): Mehrstimmige Orchester-Blechbläser-Fanfare mit Glockenspiel.
-  - **Tastatur & Menü Shortcuts**: Schnelles Stummschalten/Entstummen jederzeit per **`M`** (Browser) bzw. **`Cmd+M`** (macOS App).
-  - **Dynamischer Farb-Rahmen**: Der Rahmen um die erzielten Punkte (`+8.0 FPTS`) passt sich exakt der Manager-/Teamfarbe an (z. B. kräftiges Violett für Minnesota Vikings, Cyan für Josh Allen/Team 2, Neon-Pink für Jonathan Taylor/Team 2) und ist nicht mehr grau.
-  - **Einheitlicher Card-Hintergrund (Kein Flackern/Blinken)**: Die Highlight-Box besitzt stets die exakt identische Hintergrundfarbe wie die Matchup-Karten (`var(--bg-card)`). Sämtliche störenden `inset`-Schatten wurden eliminiert, sodass Neon-Glows ausschließlich nach außen (`box-shadow` ohne `inset`) strahlen und die innere Hintergrundfarbe niemals verfälscht wird oder pulsiert.
-  - **1-Sekunden Glow-Flare während Jiggle**: Beim Erscheinen eines Highlights (sowie beim Re-Jiggle bei neuen Plays in der Queue) leuchtet die Karte für ca. 1 Sekunde mit einem brillanten, nach außen abstrahlenden Neon-Aura-Glow (`highlight-glow-flare`). Sobald der Jiggle abklingt, blendet sich der Glow nahtlos aus und die Kachel geht in den sauberen, ruhigen Normalmodus mit farbigem Team-Rahmen über.
-  - **Verzögerungsfreier Rückwechsel zu MVP-Kacheln**: Sobald der Fortschrittsbalken (`spotlight-timer-bar`) abgelaufen ist und keine weiteren Highlights in der Queue warten, wechselt die Anzeige auf die Millisekunde genau (`forceImmediate: true`) zurück zur Position-MVP-Rotation, ohne dort hängenzubleiben.
-  - **Präzise Manager-Farbzuordnung (Roster Owner Auto-Detection)**: Die Highlight-Karte übernimmt immer zu 100% die authentische Neon-Farbe des Fantasy-Managers, dem der jeweilige Spieler im Sleeper-Roster gehört (z. B. Josh Allen & Jonathan Taylor $\rightarrow$ `Team 1` Cyan, Joe Burrow $\rightarrow$ `Team 2` Neon-Fuchsia, Vikings DEF $\rightarrow$ `Team 3` Violett, Malik Nabers $\rightarrow$ `Team 4` Bernstein-Gold, Rashee Rice $\rightarrow$ `Team 5` Frühlingsgrün, Jayden Daniels $\rightarrow$ `Team 6` Kardinalrot, Free Agents $\rightarrow$ Schiefergrau).
-  - **Reines Weiß für alle Highlight-Texte (Beamer-Optimierung)**: Sämtliche relevanten Texte in der Highlight-Kachel (Event-Tag wie `🏈 TOUCHDOWN`, Trikot-Spielername, erzielte Punkte `+6.4 FPTS` sowie das `FPTS`-Label) werden in reinem Weiß (`#ffffff`) dargestellt. Dadurch wird verhindert, dass dunklere Managerfarben auf Beamern oder Projektoren verwaschen oder unleserlich wirken. Der Manager-Farbakzent verbleibt am äußeren Rahmen, Glow und Timer-Balken.
-  - **Single-Audio Playback Garantie (Kein doppelter Sound)**: Der Fanfare-Sound ertönt strikt genau **einmal** – nämlich in dem Moment, in dem die Highlight-Kachel aktiv auf dem Bildschirm erscheint. Beim Einsortieren in die Queue (`enqueueHighlight`) sowie beim Absenden aus dem Test-Dashboard erfolgt die Einreihung geräuschlos (nur optischer Re-Jiggle und Queue-Badge), sodass kein Ton doppelt abgespielt wird.
-  - **Platzoptimierte Trikot-Namen (Jersey Names)**: Um den kompakten Platz in der Highlight-Kachel optimal auszunutzen, werden Spielernamen im Broadcast-Jersey-Format dargestellt (`Initial. Nachname [Suffix]`, z. B. `B. Robinson Jr.`, `J. Allen`, `J. Taylor`, `K. Walker III`). Verteidigungsteams werden auf ihren standardisierten 2-3 Buchstaben Team-Code verkürzt (z. B. `MIN`, `BUF`, `KC`, `DAL`, `SF`). In den Position-MVP-Kacheln bleibt weiterhin der vollständige Name erhalten.
+  - **Fokus auf Spielzug & kein abgeschnittener Manager-Name**: Auf die Anzeige des Fantasy-Teamnamens im Highlight-Tag wird verzichtet. Die Team-Zugehörigkeit wird bereits zu 100% intuitiv über den Farbcode der Kachel transportiert.
+  - **Authentischer NFL Broadcast Sound FX**:
+    - Fanfaren-Akkorde (G4, C5, E5, C-Dur Akkord mit Obertönen), Sub-Bass Stadion-Kick-Impact und Glockenspiel-Sparkle Chime.
+    - Ausgeliefert als hochauflösendes Broadcast-Audio (`/static/sounds/nfl_highlight.wav`) mit latenzfreiem Web Audio API Synthesizer Fallback.
+  - **Clean Stream Overlay & Sound-Steuerung im Welcome Dialogue**:
+    - **Ultra-Clean Top Bar**: Das Overlay verzichtet auf störende Lautsprecher-Buttons im Live-Stream, um ein 100% broadcast-reifes Aussehen zu garantieren.
+    - **Welcome & Setup Dialog**: Sound wird komfortabel vor dem Start im macOS Welcome Dialogue per Checkbox aktiviert/deaktiviert (`[x] Enable Highlight Audio FX on Big Plays`).
+    - **Auswahl aus 4 NFL Sound Themes**: Der Nutzer kann im Setup Dialogue und Dashboard direkt zwischen 4 authentischen Broadcast-Sounds wählen (`fox_horn`, `redzone`, `td_siren`, `brass_fanfare`).
+    - **Tastatur & Menü Shortcuts**: Schnelles Stummschalten/Entstummen jederzeit per **`M`** (Browser) bzw. **`Cmd+M`** (macOS App).
+    - **Dynamischer Farb-Rahmen**: Der Rahmen um die erzielten Punkte (`+8.0 FPTS`) passt sich exakt der Manager-/Teamfarbe an.
+    - **Reines Weiß für alle Highlight-Texte (Beamer-Optimierung)**: Sämtliche relevanten Texte in der Highlight-Kachel werden in reinem Weiß (`#ffffff`) dargestellt für optimale Lesbarkeit auf Beamern.
 * **Intelligente FIFO Queue-Logik (First-In, First-Out)**:
   - Scoren mehrere Spieler gleichzeitig (z. B. in der 19:00 Uhr Konferenz), reihen sie sich in die Queue ein (`+1 IN QUEUE`).
   - Anzeigedauer gekoppelt an die globale Animations-Geschwindigkeit (Normal: 10s, Fast: 5s, Slow: 20s).
 * **Idle-Zustand (wenn keine Queue aktiv ist)**:
   - **All Active Players Rotation (Starters & Bench)**: Rotiert automatisch durch alle aktiven Spieler aller Fantasy-Manager der Liga (inklusive Bank-Spieler).
-  - **Strikter Ausschluss von 0.0 FPTS & IR-Spielern**: Es werden in den MVP-/Spieler-Kacheln ausnahmslos nur Spieler angezeigt, die mehr als 0.0 FPTS erzielt haben. Spieler auf Injured Reserve (IR) oder inaktive Bankspieler ohne Punkte werden niemals in der Rotation angezeigt. Vor Kickoff wird die saubere Pregame-Kachel (`🏈 PREGAME · Awaiting Kickoff · 0.0 FPTS`) gezeigt.
-  - **Positionsweise Rotation**: Die Rotation durchläuft strukturiert Position für Position (**QB → RB → WR → TE → K → DEF**). Innerhalb jeder Position sind alle Spieler der Liga absteigend nach erzielten Fantasy-Punkten geordnet (`#1, #2, #3...`).
-  - **Minimalistisches Leader- & Kachel-Format**:
-    - Das Kronen-Emoji (`👑`) wird **ausschließlich für den jeweiligen Positionsleader (`#1`)** vergeben. Ränge `#2, #3...` erhalten keine Emojis (kein `⭐` oder `⚡`).
-    - Vollständiger Verzicht auf überflüssige Badges und Tags (`[START]`, `[BENCH]` oder `· STARTER` / `· BENCH` wurden entfernt).
-    - Format: Rang (mit `👑` bei #1), Position, Manager (Owner) und FPTS (z. B. `👑 #1 QB · CYBER BLITZ` bzw. `#2 QB · NEON TITANS`).
-  - **Defensiv- & Team-Logos**: Team-Verteidigungen (z. B. `MIN`, `BUF`, `KC`, `DAL`) laden automatisch das offizielle Sleeper NFL-Team-Logo (`https://sleepercdn.com/images/team_logos/nfl/{team}.png`) inklusive kaskadiertem ESPN-Fallback (`https://a.espncdn.com/i/teamlogos/nfl/500/{team}.png`), sodass Abwehr-Kacheln wie die **Minnesota Vikings** stets gestochen scharf dargestellt werden.
+  - **Strikter Ausschluss von 0.0 FPTS & IR-Spielern**: Es werden in den MVP-/Spieler-Kacheln ausnahmslos nur Spieler angezeigt, die mehr als 0.0 FPTS erzielt haben.
+  - **Positionsweise Rotation**: Die Rotation durchläuft strukturiert Position für Position (**QB → RB → WR → TE → K → DEF**).
+  - **Minimalistisches Leader- & Kachel-Format**: Kronen-Emoji (`👑`) ausschließlich für den jeweiligen Positionsleader (`#1`).
 
 ---
 
 ### C. Live Test UI & Simulation Center (`/admin`)
 Für Entwicklungs-, Präsentations- und Testzwecke steht unter `http://localhost:8080/admin` eine vollständige Test- und Simulationszentrale zur Verfügung:
 * **Highlight Play & Sound Simulation Station**:
-  - **1-Klick Presets**: Sofortiges Triggern von Big Plays (z. B. *Josh Allen TD +6.4*, *Jonathan Taylor TD +7.2*, *Minnesota Vikings Pick-6 +8.0* zur Verifikation von Logo & Sound, *Free Agent Deep Catch +5.4*).
-  - **3-Play Queue Burst**: Simuliert 3 aufeinanderfolgende Highlights innerhalb von 1.5s, um die FIFO-Warteschlange (`+1 IN QUEUE`), Timer-Kompression und den **Re-Jiggle Burst** der aktiven Kachel live zu testen.
-  - **Interaktive In-Browser Sandbox Preview**: Rendert die Highlight-Kachel direkt auf der Admin-Seite mit separaten Testbuttons für Box-Jiggle, NFL Fanfare Audio und Web Audio API Synthese.
-  - **Sound FX Controls**: Umschalten zwischen Sound an/aus mit Live-Statusanzeige (`SOUND ON` / `SOUND MUTED`).
+  - 1-Klick Presets für Big Plays (Josh Allen TD, Bijan Robinson Big Play, Aubrey FG, Vikings Pick-6, Free Agent).
+  - 3-Play Queue Burst zur Simulation schneller Spielzug-Abfolgen.
+  - Interaktive In-Browser Sandbox Preview mit Jiggle- und Sound-Tester.
+* **Red Zone Alert & Dual Progress Bars Station**:
+  - Matchup- & Team-Auswahl (Team A / Team B).
+  - Live Red Zone Steuerung (0 Off, 1 Dot, 2 Dots, 3 Dots, 3+ Badge).
+  - Spielzeit-Steuerung (0m, 135m / 25%, 270m / 50%, 405m / 75%, 540m / 100% Treffpunkt in der Mitte).
+* **Sleeper Player Cache & NFL Trade Sync Card**:
+  - Zeigt Cache-Alter in Stunden, Spieleranzahl und Freshness-Status (`FRESH` / `STALE`).
+  - 1-Klick Button `Sync Roster / Trade Database Now` zum manuellen Abrufen aller aktuellen NFL-Kader.
 * **Active Players Live Overview**:
   - Übersicht aller aktiven Liga-Spieler (Starters & Bench) nach Position geordnet und nach FPTS absteigend sortiert.
-  - Interaktive Filterleiste zur Filterung nach Position (`ALL`, `QB`, `RB`, `WR`, `TE`, `K`, `DEF`) und Slot (`ALL`, `STARTER`, `BENCH`).
-  - Quick-Switcher für Woche 1, 2, 3 und Live-Auto zur sofortigen Kontrolle der Datenbasis.
+  - Interaktive Filterleiste nach Position (`ALL`, `QB`, `RB`, `WR`, `TE`, `K`, `DEF`) und Slot (`ALL`, `STARTER`, `BENCH`).
 
 ---
 
@@ -168,28 +182,56 @@ Für Entwicklungs-, Präsentations- und Testzwecke steht unter `http://localhost
 sequenceDiagram
     autonumber
     participant Sleeper as Sleeper Live API
+    participant ESPN as ESPN Scoreboard API
     participant Server as Fast Python Poller (FastAPI / WebSocket)
     participant Overlay as Slim Top Bar (DOM Injection / Overlay)
 
     loop Alle 5-8 Sekunden während Spielzeit
         Server->>Sleeper: GET /v1/league/{league_id}/matchups/{week}
-        Sleeper-->>Server: JSON (Live-Punkte & Matchups)
+        Server->>ESPN: GET /apis/site/v2/sports/football/nfl/scoreboard
+        Sleeper-->>Server: JSON (Live-Punkte & Roster Starter)
+        ESPN-->>Server: JSON (Clock, Game Status, isRedZone, Possession)
+        Server->>Server: Calculate Minutes Played (cap 60m) & Redzone Starters
         Server->>Server: Delta-Check: new_points - old_points
         alt Delta >= 5.0 FPTS
             Server->>Overlay: WS Event: "PUSH_HIGHLIGHT" (Player, Delta, Manager, Headshot)
         end
-        Server->>Overlay: WS Event: "UPDATE_MATCHUPS" (Scores, Minutes Played)
+        Server->>Overlay: WS Event: "UPDATE_MATCHUPS" (Scores, Minutes, RedZone Indicators)
     end
-    Overlay->>Overlay: Balken & Scores live updaten (CSS Smooth Transitions)
-    Overlay->>Overlay: Inline Highlight Queue im rechten Slot abspielen (6s Timer)
+    Overlay->>Overlay: Balken 1 (Punkte), Balken 2 (Minuten) & RedZone Pips live updaten
+    Overlay->>Overlay: Inline Highlight Queue im rechten Slot abspielen
 ```
 
 ---
 
-## 🚀 5. Vorteile dieses Slim-Top-Designs
+## 🌐 5. 100% Liga-Agnostische Architektur (Universal League Scalability)
+
+Die gesamte HUD-Architektur ist vollständig **liga-agnostisch** konzipiert und skaliert automatisch für jede Sleeper-Liga – unabhängig von Team-Anzahl, Roster-Größe oder Starter-Zusammensetzung:
+
+1. **Beliebige Team-Anzahl (8, 10, 12, 14, 16+ Teams)**:
+   - Die API fragt dynamisch alle Matchups der jeweiligen Liga ab (`matchups = sleeper.get_matchups(...)`).
+   - **Automatisches Layout**:
+     - $\le 3$ Matchups (z. B. kleine Ligen oder Playoff-Wochen): **Statisches Layout**, alle Kacheln nebeneinander.
+     - $> 3$ Matchups (z. B. 8, 10, 12, 14, 16 Teams): **Step-Shift Animation** (oder Continuous Ticker), die kontinuierlich durch alle Matchups der Liga rotiert.
+
+2. **Beliebige Starter-Anzahl & Roster-Konfigurationen**:
+   - Egal ob Standard (9 Starter), Non-Kicker (8 Starter), Superflex (10 Starter) oder tiefe Dynasty-/IDP-Ligen:
+     - Die Gesamtspielzeit wird **dynamisch pro Team** ermittelt: $	ext{total\_minutes} = 	ext{Anzahl Starter} 	imes 60.0	ext{ Min}$.
+     - Die silberne Spielzeit-Fortschrittsleiste berechnet den Füllstand immer relativ zu $	ext{total\_minutes}$ ($	ext{width} = rac{	ext{minutes\_played}}{	ext{total\_minutes}} 	imes 50\%$).
+     - **Ergebnis**: Beide Balken treffen sich bei 100% absolvierter Spielzeit **immer exakt in der Mitte bei 50%**, ganz gleich, wie viele Starter eine Liga hat!
+
+3. **Universelle Offensive Red Zone Erkennung**:
+   - Die Red Zone Prüfung filtert automatisch alle defensiven Positionen heraus (`DEF`, `DL`, `LB`, `DB`, `P`) und deckt **alle offensiven Starter** flexibel ab (QB, RB, WR, TE, K, FB, Superflex, Flex, WR/TE, etc.).
+
+4. **Dynamischer Liga-Wechsel (Zero Restart)**:
+   - Sowohl im macOS Setup-Dialog als auch direkt im Admin Dashboard (`/admin`) kann jederzeit eine beliebige Sleeper League ID eingegeben werden. Der Backend-Engine initialisiert die neue Liga zur Laufzeit ohne Neustart.
+
+---
+
+## 🚀 6. Vorteile dieses Slim-Top-Designs
 
 1. **100% freie Sicht auf das Spiel**: Weder Spielzüge, Spielstandsanzeige der US-Sender (Fox/CBS/NBC) noch Grafiken am unteren Bildrand werden verdeckt.
-2. **Kompakt & Vollständig**: Alle 3 Liga-Duelle, Punkte-Verläufe, Spielzeit-Fortschritte und Big-Play-Highlights auf einen Blick in einer einzigen Zeile.
+2. **Kompakt & Vollständig**: Alle Liga-Duelle, Punkte-Verläufe, Spielzeit-Fortschritte (Treffen in der Mitte) und Red Zone Gefahrenstufen auf einen Blick in einer einzigen Zeile.
 3. **Multi-Screen & Stream Ready**: Funktioniert direkt im Browser, per OBS oder als transparentes Floating-Fenster über jedem Player.
 
 <!-- Versioning & DMG Packaging Active -->

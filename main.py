@@ -3,7 +3,7 @@ import sys
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body, Response
 from fastapi.responses import HTMLResponse, FileResponse
@@ -114,7 +114,10 @@ async def get_overlay():
     """Full-screen transparent HUD overlay."""
     for candidate in [STATIC_DIR / "overlay.html", TEMPLATES_DIR / "overlay.html"]:
         if candidate.exists():
-            return FileResponse(candidate)
+            return FileResponse(
+                candidate,
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+            )
     raise HTTPException(status_code=404, detail="Overlay template not found.")
 
 
@@ -124,7 +127,10 @@ async def get_admin():
     admin_file = STATIC_DIR / "admin.html"
     if not admin_file.exists():
         raise HTTPException(status_code=404, detail="Admin panel file not found.")
-    return FileResponse(admin_file)
+    return FileResponse(
+        admin_file,
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
 
 
 # ==============================================================================
@@ -137,6 +143,19 @@ async def get_state():
     if not engine.current_state:
         await engine.refresh_state(is_initial=True)
     return engine.current_state.model_dump() if engine.current_state else {}
+
+
+@app.post("/api/settings/league")
+@app.post("/api/league")
+async def set_league(league_id: str = Body(..., embed=True)):
+    """Dynamically switch active Sleeper League ID."""
+    engine.set_league_id(league_id)
+    await engine.refresh_state(is_initial=True)
+    return {
+        "status": "ok",
+        "league_id": engine.sleeper.league_id,
+        "league_name": engine.current_state.league_name if engine.current_state else ""
+    }
 
 
 @app.post("/api/settings/week")
@@ -203,8 +222,33 @@ async def toggle_sound(sound_enabled: Optional[bool] = Body(None, embed=True)):
     return {"status": "ok", "sound_enabled": settings.sound_enabled}
 
 
+# ==============================================================================
+# Sleeper Player Database & NFL Trade Cache Endpoints
+# ==============================================================================
+
+@app.get("/api/players/cache-info")
+async def get_player_cache_info():
+    """Return status, age, and size of the Sleeper player/trade database cache."""
+    return engine.sleeper.get_cache_info()
+
+
+@app.post("/api/players/refresh-cache")
+async def refresh_player_cache():
+    """Trigger an immediate download of the NFL player database from Sleeper to update trades."""
+    logger.info("Admin initiated full NFL player cache refresh...")
+    count = await engine.sleeper.refresh_players_cache()
+    # Refresh engine state with updated player teams
+    await engine.refresh_state()
+    info = engine.sleeper.get_cache_info()
+    return {"status": "ok", "message": f"Successfully updated {count} NFL players", "cache_info": info}
+
+
+# ==============================================================================
+# Simulation & Testing Endpoints
+# ==============================================================================
+
 @app.post("/api/test/mock-league")
-async def mock_league(teams_count: int = Body(12, embed=True)) :
+async def mock_league(teams_count: int = Body(12, embed=True)):
     """Generate a simulated league with 6, 8, 10, 12, 14, or 16 teams."""
     state = engine.generate_mock_league(teams_count)
     await ws_manager.broadcast({
@@ -212,6 +256,49 @@ async def mock_league(teams_count: int = Body(12, embed=True)) :
         "state": state.model_dump()
     })
     return {"status": "ok", "teams_count": teams_count, "matchups_count": len(state.matchups)}
+
+
+@app.post("/api/test/set-redzone")
+async def set_test_redzone(
+    matchup_id: int = Body(1, embed=True),
+    team_side: str = Body("a", embed=True),
+    count: int = Body(1, embed=True),
+    player_names: Optional[List[str]] = Body(None, embed=True)
+):
+    """Dynamically set the Red Zone alert count on a matchup team for live testing."""
+    success = engine.set_mock_redzone(matchup_id, team_side, count, player_names)
+    if success and engine.current_state:
+        await ws_manager.broadcast({
+            "type": "UPDATE_MATCHUPS",
+            "state": engine.current_state.model_dump()
+        })
+        return {"status": "ok", "matchup_id": matchup_id, "team_side": team_side, "count": count}
+    raise HTTPException(status_code=404, detail="Matchup or team not found")
+
+
+@app.post("/api/test/set-minutes")
+async def set_test_minutes(
+    matchup_id: int = Body(1, embed=True),
+    team_side: str = Body("a", embed=True),
+    minutes: float = Body(270.0, embed=True)
+):
+    """Dynamically set the minutes played on a matchup team (0 to 540) for live testing."""
+    success = engine.set_mock_minutes(matchup_id, team_side, minutes)
+    if success and engine.current_state:
+        await ws_manager.broadcast({
+            "type": "UPDATE_MATCHUPS",
+            "state": engine.current_state.model_dump()
+        })
+        return {"status": "ok", "matchup_id": matchup_id, "team_side": team_side, "minutes": minutes}
+    raise HTTPException(status_code=404, detail="Matchup or team not found")
+
+
+@app.post("/api/test/clear-overrides")
+async def clear_test_overrides():
+    """Clear all active test/simulation overrides and refresh state."""
+    engine.clear_mock_overrides()
+    await engine.refresh_state()
+    return {"status": "ok", "message": "All test overrides cleared"}
 
 
 @app.post("/api/test/highlight")

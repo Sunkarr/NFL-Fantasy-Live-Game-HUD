@@ -71,6 +71,8 @@ class HUDStateEngine:
         self.simulation_mode: bool = False
         self.mock_league_active: bool = False
         self.week_override: Optional[int] = None
+        self.mock_redzone_overrides: Dict[Tuple[int, str], Tuple[int, List[str]]] = {}
+        self.mock_minutes_overrides: Dict[Tuple[int, str], float] = {}
 
     async def initialize(self):
         """Bootstrap player database and initial matchup state."""
@@ -84,6 +86,17 @@ class HUDStateEngine:
         self.week_override = week
         self.mock_league_active = False
         logger.info(f"Week override set to: {week}")
+
+    def set_league_id(self, league_id: str):
+        """Dynamically switch active Sleeper League ID."""
+        cleaned_id = str(league_id).strip()
+        self.sleeper.league_id = cleaned_id
+        self.league_meta_cache = {}
+        self.prev_player_points = {}
+        self.prev_player_stats = {}
+        self.highlight_queue.clear()
+        self.clear_mock_overrides()
+        logger.info(f"Sleeper League ID switched to: {cleaned_id}")
 
     def get_speed_seconds(self) -> int:
         """Return interval in seconds for the current speed preset."""
@@ -176,6 +189,30 @@ class HUDStateEngine:
             pts_a = round(random.uniform(90.0, 165.0), 1)
             pts_b = round(random.uniform(90.0, 165.0), 1)
 
+            # Test presets for minutes and red zone to demonstrate features clearly
+            if i == 0:
+                # Matchup 1: In progress with 1 Red Zone on Team A
+                min_a, rz_a, rz_pls_a = 380.0, 1, ["Josh Allen"]
+                min_b, rz_b, rz_pls_b = 270.0, 0, []
+            elif i == 1:
+                # Matchup 2: Both teams finished all minutes (meet in center at 50% / 50%)
+                min_a, rz_a, rz_pls_a = 540.0, 0, []
+                min_b, rz_b, rz_pls_b = 540.0, 0, []
+            elif i == 2:
+                # Matchup 3: Team A has 2 Red Zone players, Team B has 4 (badge '3+')
+                min_a, rz_a, rz_pls_a = 195.0, 2, ["Justin Jefferson", "Saquon Barkley"]
+                min_b, rz_b, rz_pls_b = 135.0, 4, ["Trey McBride", "CeeDee Lamb", "Lamar Jackson", "Jonathan Taylor"]
+            else:
+                min_a = round(random.uniform(60.0, 520.0), 1)
+                min_b = round(random.uniform(60.0, 520.0), 1)
+                rz_a = random.choice([0, 0, 1, 2, 3])
+                rz_pls_a = [f"Star {x+1}" for x in range(rz_a)]
+                rz_b = random.choice([0, 0, 0, 1])
+                rz_pls_b = [f"Star {x+1}" for x in range(rz_b)]
+
+            pct_a = round((min_a / 540.0) * 100.0, 1)
+            pct_b = round((min_b / 540.0) * 100.0, 1)
+
             t_a = TeamScore(
                 roster_id=idx_a + 1,
                 owner_id=f"user_{idx_a}",
@@ -183,6 +220,12 @@ class HUDStateEngine:
                 manager_name=m_a[0],
                 avatar_url=m_a[2],
                 points=pts_a,
+                starters_count=9,
+                minutes_played=min_a,
+                total_minutes=540.0,
+                time_played_pct=pct_a,
+                redzone_count=rz_a,
+                redzone_players=rz_pls_a,
                 is_user_team=(m_a[0].lower() == self.user_team_name),
                 color_accent=m_a[1]
             )
@@ -194,6 +237,12 @@ class HUDStateEngine:
                 manager_name=m_b[0],
                 avatar_url=m_b[2],
                 points=pts_b,
+                starters_count=9,
+                minutes_played=min_b,
+                total_minutes=540.0,
+                time_played_pct=pct_b,
+                redzone_count=rz_b,
+                redzone_players=rz_pls_b,
                 is_user_team=(m_b[0].lower() == self.user_team_name),
                 color_accent=m_b[1]
             )
@@ -211,7 +260,6 @@ class HUDStateEngine:
             ))
 
         # Mock rotation through active players: QB -> RB -> WR -> TE -> K -> DEF
-        # (All active players with FPTS > 0, Starters & Bench, sorted by FPTS descending)
         mock_spotlights = [
             # --- QBs ---
             IdleSpotlight(
@@ -435,7 +483,7 @@ class HUDStateEngine:
                 manager_name="Neon Titans",
                 points=9.0,
                 headshot_url="https://sleepercdn.com/content/nfl/players/1264.jpg",
-                title="#2 K · NEON TITANS",
+                title="#2 K · NEON Titans",
                 color_accent="#ff00aa",
                 is_free_agent=False,
                 is_starter=True,
@@ -514,7 +562,7 @@ class HUDStateEngine:
             raw_matchups = await self.sleeper.get_matchups(current_week)
             weekly_stats = await self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type)
 
-            # 3. Refresh live ESPN scoreboard
+            # 3. Refresh live ESPN scoreboard (includes Red Zone and Minutes Elapsed)
             await self.nfl_tracker.fetch_scoreboard()
 
             # Map users: user_id -> display_name, avatar
@@ -619,9 +667,10 @@ class HUDStateEngine:
                     starters_detail: List[PlayerInfo] = []
                     starters_played_count = 0
                     starters_in_progress_count = 0
-                    total_progress_sum = 0.0
+                    total_minutes_played = 0.0
+                    redzone_players: List[str] = []
 
-                    # 1. Process Starters for matchup scorecard & progress
+                    # 1. Process Starters for matchup scorecard, minutes, and red zone
                     for pid in starters:
                         p_info = self.sleeper.get_player_info(str(pid))
                         pts = float(players_pts.get(str(pid), 0.0))
@@ -631,18 +680,28 @@ class HUDStateEngine:
                         status = "pre"
                         clock = ""
                         progress_pct = 0.0
+                        minutes_elapsed = 0.0
+                        is_redzone = False
 
                         if game_info:
                             status = game_info.status
                             clock = game_info.clock
                             progress_pct = game_info.progress_pct
+                            minutes_elapsed = getattr(game_info, "minutes_elapsed", 0.0)
+                            # Red zone alert: active offensive starters whose NFL team is in Red Zone (universal offensive check)
+                            def_positions = {"DEF", "D/ST", "DL", "LB", "DB", "DE", "DT", "CB", "S", "SS", "FS", "P"}
+                            pos_upper = p_info.get("position", "").upper()
+                            if pos_upper and pos_upper not in def_positions:
+                                is_redzone = getattr(game_info, "is_redzone", False)
 
                         if status == "in":
                             starters_in_progress_count += 1
                         elif status == "post":
                             starters_played_count += 1
 
-                        total_progress_sum += progress_pct
+                        total_minutes_played += minutes_elapsed
+                        if is_redzone:
+                            redzone_players.append(p_info["name"])
 
                         player_model = PlayerInfo(
                             player_id=str(pid),
@@ -653,14 +712,13 @@ class HUDStateEngine:
                             game_status=status,
                             game_clock=clock,
                             game_progress_pct=progress_pct,
-                            headshot_url=p_info["headshot_url"],
-                            fantasy_team_name=r_meta["team_name"],
-                            color_accent=r_meta["color_accent"]
+                            minutes_played=round(minutes_elapsed, 1),
+                            is_redzone=is_redzone,
+                            headshot_url=p_info["headshot_url"]
                         )
                         starters_detail.append(player_model)
 
                     # 2. Process ALL rostered players (starters + bench)
-                    # Gather unique roster pids preserving starters first, then bench
                     roster_all_pids = [str(p) for p in (m_entry.get("players") or roster_players_map.get(rid, []))]
                     combined_pids = list(starters)
                     for pid in roster_all_pids:
@@ -692,7 +750,7 @@ class HUDStateEngine:
                                 "roster_slot": roster_slot
                             })
 
-                        # Collect starting players for pregame fallback (when 0 players in league have scored yet)
+                        # Collect starting players for pregame fallback
                         if is_starter:
                             pregame_starters_by_pos.setdefault(pos, []).append({
                                 "player_id": str(pid),
@@ -709,14 +767,13 @@ class HUDStateEngine:
                                 "roster_slot": "STARTER"
                             })
 
-                        # Delta check for Highlight Queue (supports both starters and bench players)
+                        # Delta check for Highlight Queue
                         if self.is_bootstrapped and not is_initial:
                             prev_pts = self.prev_player_points.get(str(pid), pts)
                             delta = pts - prev_pts
                             if delta >= HIGHLIGHT_THRESHOLD:
                                 logger.info(f"🔥 HIGHLIGHT DETECTED! {p_info['name']} ({roster_slot}) +{delta:.1f} FPTS for {r_meta['manager_name']}")
                                 
-                                # Action type classification (Touchdown, Field Goal, Defense Stop, Big Play)
                                 cur_pstats = p_stats or {}
                                 old_pstats = self.prev_player_stats.get(str(pid), {})
                                 
@@ -768,9 +825,10 @@ class HUDStateEngine:
                         self.prev_player_points[str(pid)] = pts
                         self.prev_player_stats[str(pid)] = p_stats or {}
 
-                    # Calculate overall team game time played %
-                    num_starters = max(len(starters_detail), 1)
-                    avg_time_pct = (total_progress_sum / num_starters) * 100.0
+                    # Calculate total minutes played & percentage across starting roster
+                    starters_cnt = len(starters_detail) if starters_detail else 9
+                    total_max_minutes = float(starters_cnt * 60)
+                    time_pct = (total_minutes_played / total_max_minutes * 100.0) if total_max_minutes > 0 else 0.0
 
                     team_score = TeamScore(
                         roster_id=rid,
@@ -783,7 +841,11 @@ class HUDStateEngine:
                         starters_played_count=starters_played_count,
                         starters_in_progress_count=starters_in_progress_count,
                         starters_yet_to_play_count=max(0, len(starters_detail) - starters_played_count - starters_in_progress_count),
-                        time_played_pct=round(avg_time_pct, 1),
+                        minutes_played=round(total_minutes_played, 1),
+                        total_minutes=total_max_minutes,
+                        time_played_pct=round(time_pct, 1),
+                        redzone_count=len(redzone_players),
+                        redzone_players=redzone_players,
                         is_user_team=r_meta["is_user_team"],
                         color_accent=r_meta["color_accent"],
                         starters_detail=starters_detail
@@ -793,6 +855,27 @@ class HUDStateEngine:
                 if len(teams) >= 2:
                     t_a = teams[0]
                     t_b = teams[1]
+
+                    # Apply persistent mock redzone overrides if any
+                    if (mid, "a") in self.mock_redzone_overrides:
+                        rz_c, rz_p = self.mock_redzone_overrides[(mid, "a")]
+                        t_a.redzone_count = rz_c
+                        t_a.redzone_players = rz_p
+                    if (mid, "b") in self.mock_redzone_overrides:
+                        rz_c, rz_p = self.mock_redzone_overrides[(mid, "b")]
+                        t_b.redzone_count = rz_c
+                        t_b.redzone_players = rz_p
+
+                    # Apply persistent mock minutes overrides if any
+                    if (mid, "a") in self.mock_minutes_overrides:
+                        m_val = self.mock_minutes_overrides[(mid, "a")]
+                        t_a.minutes_played = m_val
+                        t_a.time_played_pct = round((m_val / t_a.total_minutes) * 100.0, 1) if t_a.total_minutes > 0 else 0.0
+                    if (mid, "b") in self.mock_minutes_overrides:
+                        m_val = self.mock_minutes_overrides[(mid, "b")]
+                        t_b.minutes_played = m_val
+                        t_b.time_played_pct = round((m_val / t_b.total_minutes) * 100.0, 1) if t_b.total_minutes > 0 else 0.0
+
                     diff = round(abs(t_a.points - t_b.points), 2)
                     leader = t_a.roster_id if t_a.points >= t_b.points else t_b.roster_id
                     
@@ -819,8 +902,6 @@ class HUDStateEngine:
                     ))
 
             # Build list of Active Players ordered position-by-position: QB -> RB -> WR -> TE -> K -> DEF
-            # In mvp/player cards, only show players that have non-zero fpts (so IR players etc. don't get displayed)
-            # Crown emoji for leader, other than that only show rank, position, owner, fpts (no additional labels etc.)
             idle_spotlights: List[IdleSpotlight] = []
             pos_order = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
@@ -874,7 +955,7 @@ class HUDStateEngine:
                             rank=rank
                         ))
 
-            # Update Current State (idle_spotlights is empty if no games have started yet)
+            # Update Current State
             self.current_state = HUDState(
                 league_id=str(self.sleeper.league_id),
                 league_name=league_info.get("name", "NFL Fantasy League"),
@@ -909,6 +990,46 @@ class HUDStateEngine:
         except Exception as e:
             logger.error(f"Failed to refresh HUD state: {e}", exc_info=True)
             raise e
+
+    def set_mock_redzone(self, matchup_id: int, team_side: str, count: int, player_names: Optional[List[str]] = None) -> bool:
+        """Dynamically set the Red Zone count on a matchup team for testing (persists until changed or cleared)."""
+        side_key = "a" if team_side.lower() in ["a", "team_a", "left"] else "b"
+        p_names = player_names or [f"Player {i+1}" for i in range(count)]
+        if count <= 0:
+            self.mock_redzone_overrides.pop((matchup_id, side_key), None)
+        else:
+            self.mock_redzone_overrides[(matchup_id, side_key)] = (count, p_names)
+
+        if self.current_state and self.current_state.matchups:
+            for m in self.current_state.matchups:
+                if m.matchup_id == matchup_id:
+                    target_team = m.team_a if side_key == "a" else m.team_b
+                    if target_team:
+                        target_team.redzone_count = max(0, count)
+                        target_team.redzone_players = p_names if count > 0 else []
+                        return True
+        return False
+
+    def set_mock_minutes(self, matchup_id: int, team_side: str, minutes: float) -> bool:
+        """Dynamically set minutes played on a matchup team for testing (persists until changed or cleared)."""
+        side_key = "a" if team_side.lower() in ["a", "team_a", "left"] else "b"
+        self.mock_minutes_overrides[(matchup_id, side_key)] = float(minutes)
+
+        if self.current_state and self.current_state.matchups:
+            for m in self.current_state.matchups:
+                if m.matchup_id == matchup_id:
+                    target_team = m.team_a if side_key == "a" else m.team_b
+                    if target_team:
+                        mins = max(0.0, min(float(target_team.total_minutes), float(minutes)))
+                        target_team.minutes_played = mins
+                        target_team.time_played_pct = round((mins / target_team.total_minutes) * 100.0, 1)
+                        return True
+        return False
+
+    def clear_mock_overrides(self):
+        """Clear all active test/simulation overrides and return to live tracking."""
+        self.mock_redzone_overrides.clear()
+        self.mock_minutes_overrides.clear()
 
     def trigger_test_highlight(
         self,
@@ -988,7 +1109,6 @@ class HUDStateEngine:
             resolved_headshot = resolved_headshot or f"https://sleepercdn.com/images/team_logos/nfl/{team_c}.png"
             resolved_pid = team_c.upper()
         else:
-            # Query sleeper cache
             if hasattr(self.sleeper, "players_cache") and self.sleeper.players_cache:
                 for pid, pdata in self.sleeper.players_cache.items():
                     if pdata.get("name", "").lower().strip() == p_lower:
@@ -1033,7 +1153,6 @@ class HUDStateEngine:
             manager_name = "Free Agent"
             fantasy_team_name = "Free Agent"
         else:
-            # Explicit fantasy team or manager specified
             color = None
             manager_name = fantasy_team_name
             if hasattr(self, "rosters_map") and self.rosters_map:
@@ -1056,7 +1175,6 @@ class HUDStateEngine:
             if not color:
                 color = "#00f0ff"
 
-        # Determine action category (touchdown, field_goal, def_stop, big_play)
         hl_type = (highlight_type or "").lower().strip()
         p_desc = player_name.lower()
 
