@@ -48,6 +48,9 @@ class NFLGameHUD {
     this.cachedMatchups = [];
 
     // Audio & Sound FX System
+    // Preloaded Media Cache to eliminate pop-in delay
+    this.preloadedMedia = new Set();
+
     this.soundEnabled = localStorage.getItem('nfl_hud_sound_enabled') === 'true';
     this.soundTheme = localStorage.getItem('nfl_hud_sound_theme') || 'fox_horn';
     this.audioCtx = null;
@@ -222,9 +225,40 @@ class NFLGameHUD {
   // =========================================================================
   // State & Matchups Rendering (Flicker-Free In-Place Updates)
   // =========================================================================
+  preloadMedia(state) {
+    if (!state) return;
+    const urls = [];
+    if (Array.isArray(state.matchups)) {
+      state.matchups.forEach(m => {
+        if (m.team_a && m.team_a.avatar_url) urls.push(m.team_a.avatar_url);
+        if (m.team_b && m.team_b.avatar_url) urls.push(m.team_b.avatar_url);
+      });
+    }
+    if (Array.isArray(state.idle_spotlights)) {
+      state.idle_spotlights.forEach(s => {
+        if (s && s.headshot_url) urls.push(s.headshot_url);
+      });
+    }
+    urls.forEach(url => {
+      if (url && !this.preloadedMedia.has(url)) {
+        this.preloadedMedia.add(url);
+        const img = new Image();
+        img.src = url;
+      }
+    });
+  }
+
+  handleTeamAvatarError(img) {
+    if (img && !img.dataset.fallbackApplied) {
+      img.dataset.fallbackApplied = 'true';
+      img.src = 'https://sleepercdn.com/images/v2/icons/player_default.webp';
+    }
+  }
+
   renderState(state) {
     if (!state) return;
     this.state = state;
+    this.preloadMedia(state);
 
     if (state.display_settings) {
       this.applyDisplaySettings(state.display_settings);
@@ -331,6 +365,16 @@ class NFLGameHUD {
       const totalMinB = teamB && teamB.total_minutes ? teamB.total_minutes : 540;
       const minPctB = totalMinB > 0 ? (minPlayedB / totalMinB) : 0;
       const widthMinB = (Math.min(1.0, Math.max(0.0, minPctB)) * 50).toFixed(1);
+
+      // Update team avatars in place if changed
+      const avatarElA = card.querySelector('.avatar-a');
+      const avatarElB = card.querySelector('.avatar-b');
+      if (avatarElA && teamA && teamA.avatar_url && avatarElA.src !== teamA.avatar_url) {
+        avatarElA.src = teamA.avatar_url;
+      }
+      if (avatarElB && teamB && teamB.avatar_url && avatarElB.src !== teamB.avatar_url) {
+        avatarElB.src = teamB.avatar_url;
+      }
 
       const scoreElA = card.querySelector('.score-a');
       const scoreElB = card.querySelector('.score-b');
@@ -548,7 +592,7 @@ class NFLGameHUD {
     card.innerHTML = `
       <div class="matchup-teams-row">
         <div class="team-side left">
-          <img class="team-avatar avatar-a" src="${teamA ? teamA.avatar_url : ''}" alt="${teamA ? teamA.manager_name : ''}" title="${teamA ? teamA.manager_name : ''}" style="border-color: ${colorA}; box-shadow: 0 0 8px ${this.hexToRgba(colorA, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+          <img class="team-avatar avatar-a" src="${teamA ? teamA.avatar_url : ''}" alt="${teamA ? teamA.manager_name : ''}" title="${teamA ? teamA.manager_name : ''}" style="border-color: ${colorA}; box-shadow: 0 0 8px ${this.hexToRgba(colorA, 0.45)};" onerror="window.hud && window.hud.handleTeamAvatarError ? window.hud.handleTeamAvatarError(this) : (this.src='https://sleepercdn.com/images/v2/icons/player_default.webp')" />
           <div class="rz-slot-a">${rzHtmlA}</div>
         </div>
 
@@ -564,7 +608,7 @@ class NFLGameHUD {
 
         <div class="team-side right">
           <div class="rz-slot-b">${rzHtmlB}</div>
-          <img class="team-avatar avatar-b" src="${teamB ? teamB.avatar_url : ''}" alt="${teamB ? teamB.manager_name : ''}" title="${teamB ? teamB.manager_name : ''}" style="border-color: ${colorB}; box-shadow: 0 0 8px ${this.hexToRgba(colorB, 0.45)};" onerror="this.src='https://sleepercdn.com/images/v2/icons/player_default.webp'" />
+          <img class="team-avatar avatar-b" src="${teamB ? teamB.avatar_url : ''}" alt="${teamB ? teamB.manager_name : ''}" title="${teamB ? teamB.manager_name : ''}" style="border-color: ${colorB}; box-shadow: 0 0 8px ${this.hexToRgba(colorB, 0.45)};" onerror="window.hud && window.hud.handleTeamAvatarError ? window.hud.handleTeamAvatarError(this) : (this.src='https://sleepercdn.com/images/v2/icons/player_default.webp')" />
         </div>
       </div>
 

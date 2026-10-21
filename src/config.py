@@ -17,8 +17,8 @@ if ENV_FILE.exists():
 else:
     load_dotenv()
 
-# Sleeper League Configuration
-LEAGUE_ID = os.getenv("LEAGUE_ID", "1390344846723543040")
+# Sleeper League Configuration (supports LEAGUE_ID and SLEEPER_LEAGUE_ID)
+LEAGUE_ID = os.getenv("LEAGUE_ID", os.getenv("SLEEPER_LEAGUE_ID", "1390344846723543040"))
 TEAM_NAME = os.getenv("TEAM_NAME", "")
 SEASON = os.getenv("SEASON", "2026")
 TZ = os.getenv("TZ", "Europe/Berlin")

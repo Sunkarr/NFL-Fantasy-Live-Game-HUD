@@ -801,6 +801,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     func pushSettingsToBackend(leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, completion: @escaping () -> Void) {
         let group = DispatchGroup()
 
+        // 0. Post target Sleeper league ID to preload latest manager avatars and league data
+        if let leagueUrl = URL(string: "\(serverURL)/api/league") {
+            var req = URLRequest(url: leagueUrl)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = ["league_id": leagueId]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            
+            group.enter()
+            URLSession.shared.dataTask(with: req) { _, _, _ in group.leave() }.resume()
+        }
+
         // 1. Post display & audio settings
         if let settingsUrl = URL(string: "\(serverURL)/api/settings") {
             var req = URLRequest(url: settingsUrl)
@@ -871,6 +883,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         let logPath = "/tmp/hud_backend.log"
         let script = """
         cd "\(repoPath)"
+        export LEAGUE_ID="\(leagueId)"
         export SLEEPER_LEAGUE_ID="\(leagueId)"
         export PYTHONUNBUFFERED=1
         "\(pythonBin)" main.py > "\(logPath)" 2>&1 &

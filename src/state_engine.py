@@ -1,8 +1,9 @@
+import asyncio
 import uuid
 import time
 import random
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 
 from src.models import (
     HUDState, MatchupData, TeamScore, PlayerInfo,
@@ -34,6 +35,23 @@ def calculate_fantasy_points(stats: Dict[str, Any], rules: Dict[str, float]) -> 
     if pts == 0.0:
         pts = stats.get("pts_ppr") or stats.get("pts_half_ppr") or stats.get("pts_std") or 0.0
     return round(float(pts), 2)
+
+def resolve_avatar_url(raw_val: Optional[Any]) -> Optional[str]:
+    """
+    Resolve Sleeper avatar string, upload URL, or hash to full high-res avatar URL.
+    Handles:
+    - Direct image URLs (e.g., custom uploaded team avatars: https://sleepercdn.com/uploads/...)
+    - Sleeper avatar hash/ID strings (e.g., 4f9417c504f57a8ebfb9588586f8d5c3) -> https://sleepercdn.com/avatars/{hash}
+    """
+    if not raw_val:
+        return None
+    val = str(raw_val).strip()
+    if not val or val.lower() in ('none', 'null', 'undefined'):
+        return None
+    if val.startswith('http://') or val.startswith('https://'):
+        return val
+    return f'https://sleepercdn.com/avatars/{val}'
+
 
 
 class HUDStateEngine:
@@ -75,11 +93,15 @@ class HUDStateEngine:
         self.mock_minutes_overrides: Dict[Tuple[int, str], float] = {}
 
     async def initialize(self):
-        """Bootstrap player database and initial matchup state."""
+        """Bootstrap player database and initial matchup state before start."""
+        logger.info("Bootstrap: verifying NFL players cache...")
         await self.sleeper.ensure_players_cache()
+        logger.info("Bootstrap: loading newest manager avatars, team rosters, and live league state...")
         await self.refresh_state(is_initial=True)
         self.is_bootstrapped = True
-        logger.info("HUD State Engine initialized successfully.")
+        mgr_count = len(self.rosters_map) if self.rosters_map else 0
+        l_name = self.current_state.league_name if self.current_state else "Unknown"
+        logger.info(f"HUD State Engine successfully initialized. Loaded {mgr_count} managers with newest avatars for '{l_name}'.")
 
     def set_week(self, week: Optional[int]):
         """Override active game week for testing."""
@@ -554,25 +576,28 @@ class HUDStateEngine:
             season_type = nfl_state.get("season_type", "regular")
             season = nfl_state.get("season", "2026")
 
-            # 2. Fetch League, Users, Rosters, Matchups, and League-wide NFL Stats
-            league_info = await self.sleeper.get_league_info()
-            scoring_settings = league_info.get("scoring_settings", {})
-            users = await self.sleeper.get_league_users()
-            rosters = await self.sleeper.get_league_rosters()
-            raw_matchups = await self.sleeper.get_matchups(current_week)
-            weekly_stats = await self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type)
+            # 2. Concurrently fetch League, Users, Rosters, Matchups, Weekly Stats, and ESPN Scoreboard
+            league_info, users, rosters, raw_matchups, weekly_stats, _ = await asyncio.gather(
+                self.sleeper.get_league_info(),
+                self.sleeper.get_league_users(),
+                self.sleeper.get_league_rosters(),
+                self.sleeper.get_matchups(current_week),
+                self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
+                self.nfl_tracker.fetch_scoreboard()
+            )
+            scoring_settings = league_info.get("scoring_settings", {}) if isinstance(league_info, dict) else {}
 
-            # 3. Refresh live ESPN scoreboard (includes Red Zone and Minutes Elapsed)
-            await self.nfl_tracker.fetch_scoreboard()
-
-            # Map users: user_id -> display_name, avatar
+            # Map users: user_id -> display_name, avatar (support custom uploaded avatar in metadata & profile avatar)
             users_map: Dict[str, Dict[str, str]] = {}
-            for u in users:
+            for u in (users or []):
                 uid = u.get("user_id")
-                meta = u.get("metadata", {})
+                meta = u.get("metadata") or {}
                 dname = meta.get("team_name") or u.get("display_name") or f"Manager {uid}"
-                avatar_id = u.get("avatar")
-                avatar_url = f"https://sleepercdn.com/avatars/thumbs/{avatar_id}" if avatar_id else "https://sleepercdn.com/images/v2/icons/player_default.webp"
+                avatar_url = (
+                    resolve_avatar_url(meta.get("avatar"))
+                    or resolve_avatar_url(u.get("avatar"))
+                    or "https://sleepercdn.com/images/v2/icons/player_default.webp"
+                )
                 users_map[uid] = {
                     "manager_name": u.get("display_name", dname),
                     "team_name": dname,
@@ -584,22 +609,30 @@ class HUDStateEngine:
             roster_players_map: Dict[int, List[str]] = {}
             player_to_roster: Dict[str, Dict[str, Any]] = {}
 
-            for idx, r in enumerate(rosters):
+            for idx, r in enumerate(rosters or []):
                 rid = r.get("roster_id")
                 oid = r.get("owner_id")
+                r_meta = r.get("metadata") or {}
                 u_info = users_map.get(oid, {
                     "manager_name": f"Team {rid}",
                     "team_name": f"Team {rid}",
                     "avatar_url": "https://sleepercdn.com/images/v2/icons/player_default.webp"
                 })
 
-                mgr_lower = u_info["manager_name"].lower()
-                is_user_team = (mgr_lower == self.user_team_name) or (u_info["team_name"].lower() == self.user_team_name)
+                # Prioritize custom avatar and team name set on roster level if present
+                roster_avatar = resolve_avatar_url(r_meta.get("avatar"))
+                avatar_url = roster_avatar or u_info["avatar_url"]
+                team_name = r_meta.get("team_name") or u_info["team_name"]
+                manager_name = u_info["manager_name"]
+
+                mgr_lower = manager_name.lower()
+                team_lower = team_name.lower()
+                is_user_team = (mgr_lower == self.user_team_name) or (team_lower == self.user_team_name)
 
                 # Determine color accent (Preset override, or deterministic roster palette)
                 color = None
                 for key, val in MANAGER_COLORS.items():
-                    if key.lower() == mgr_lower or key.lower() == u_info["team_name"].lower():
+                    if key.lower() == mgr_lower or key.lower() == team_lower:
                         color = val
                         break
                 if not color:
@@ -612,9 +645,9 @@ class HUDStateEngine:
                 r_dict = {
                     "roster_id": rid,
                     "owner_id": oid or "",
-                    "manager_name": u_info["manager_name"],
-                    "team_name": u_info["team_name"],
-                    "avatar_url": u_info["avatar_url"],
+                    "manager_name": manager_name,
+                    "team_name": team_name,
+                    "avatar_url": avatar_url,
                     "is_user_team": is_user_team,
                     "color_accent": color
                 }

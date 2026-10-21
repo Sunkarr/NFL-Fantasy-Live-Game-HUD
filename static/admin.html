@@ -1035,6 +1035,10 @@
       renderSandboxPill('Josh Allen', 6.4, 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg', false);
     }
 
+
+    // Aliases for compatibility and tests
+    function playTestFanfare() { previewSynthesizedFanfare(); }
+    function triggerTestHighlight() { triggerCustomHighlight(); }
     function previewSynthesizedFanfare() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;

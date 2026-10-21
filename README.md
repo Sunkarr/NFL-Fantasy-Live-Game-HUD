@@ -23,18 +23,21 @@ Each manager in the live ticker has a high-contrast, glowing neon accent color c
 
 ---
 
-## 🍎 Native macOS Swift App
+## 🍏 Native macOS Swift App & DMG Installer
 
 You can launch the HUD directly as a standalone, native Mac app:
 
-### 1. Launch App
+### 1. Launch App & DMG Installer
+- **DMG Package**: Open [`NFL-Fantasy-HUD.dmg`](file:///Users/jonas/Documents/GitHub/NFL-Fantasy-Live-Game-HUD/NFL-Fantasy-HUD.dmg) and drag `NFL Fantasy HUD.app` into your Applications folder. Includes a one-click `Fix_Gatekeeper.command` helper.
+- **Direct Launch**:
 ```bash
 open "NFL Fantasy HUD.app"
 ```
 
 ### 2. Swift App Features:
 1. **Welcome / Setup Dialog**:
-   - **Sleeper League ID** input (pre-filled with default)
+   - **Sleeper League ID** input (pre-filled with default, dynamic live switching)
+   - **Newest Avatar & Data Preload**: Prioritizes custom league team avatars (`metadata.avatar`) and high-resolution Sleeper profile avatars concurrently at engine boot and dynamic league switch, with browser-side image preloading to prevent pop-in delay or image flicker.
    - **Target Display Selection** (instantly switch between MacBook screen, external monitors, or projectors)
    - **Matchup Layout Selection** (Automatic, Continuous Ticker, or Step-by-Step Shift for leagues of any size)
    - **Animation Speed** (Normal, Fast, Slow)
@@ -51,10 +54,14 @@ open "NFL Fantasy HUD.app"
 
 ---
 
-## 🛠️ Rebuilding the App (Optional)
-If you make modifications to the Swift codebase:
+## 🛠️ Rebuilding the App & Packaging DMG
+If you make modifications to the Swift codebase or backend:
 ```bash
+# Rebuild native app bundle and update /Applications
 ./build_mac_app.sh
+
+# Build DMG installer with drag-and-drop Applications shortcut
+./create_dmg.sh
 ```
 
 ---
@@ -68,3 +75,4 @@ When downloading from GitHub Releases, macOS Gatekeeper may show a warning for u
 ```bash
 xattr -cr "/Applications/NFL Fantasy HUD.app"
 ```
+Or double-click `Fix_Gatekeeper.command` included on the DMG installer.
