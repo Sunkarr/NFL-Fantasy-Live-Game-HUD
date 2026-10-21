@@ -46,13 +46,17 @@ class TeamGameInfo(dict):
 
 
 class NFLGameTracker:
-    """Tracks live NFL game statuses, clocks, completion percentages, and red zone states."""
+    """Tracks live NFL game statuses, clocks, completion percentages, red zone states, and player injuries."""
 
     def __init__(self):
         self.client = httpx.AsyncClient(timeout=8.0)
         self.team_status_cache: Dict[str, TeamGameInfo] = {}
         self.last_fetched: float = 0.0
-        self.cache_ttl: float = 15.0  # 15 seconds TTL for ESPN API
+        self.cache_ttl: float = 15.0  # 15 seconds TTL for ESPN Scoreboard
+
+        self.injury_cache: Dict[str, Dict[str, Any]] = {}
+        self.last_injury_fetched: float = 0.0
+        self.injury_cache_ttl: float = 30.0  # 30 seconds TTL for ESPN Injuries
 
     async def fetch_scoreboard(self) -> Dict[str, TeamGameInfo]:
         """Alias for update_nfl_games."""
@@ -91,7 +95,6 @@ class NFLGameTracker:
                 possession_id = str(situation.get("possession", "")).strip()
 
                 # Calculate progress percentage (0.0 to 1.0) and minutes elapsed (0.0 to 60.0)
-                # Overtime is ignored; regular game is capped at 60.0 minutes.
                 progress_pct = 0.0
                 minutes_elapsed = 0.0
 
@@ -165,6 +168,81 @@ class NFLGameTracker:
         except Exception as e:
             logger.warning(f"Error fetching ESPN NFL scoreboard: {e}")
             return self.team_status_cache
+
+    async def fetch_injuries(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch real-time NFL player injury reports from ESPN across all 32 teams.
+        Returns a dict mapping normalized player names and (name, team) keys to injury details.
+        """
+        now = time.time()
+        if now - self.last_injury_fetched < self.injury_cache_ttl and self.injury_cache:
+            return self.injury_cache
+
+        try:
+            url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries"
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            injury_lookup: Dict[str, Dict[str, Any]] = {}
+            team_entries = data.get("injuries", [])
+
+            for team_item in team_entries:
+                for inj in team_item.get("injuries", []):
+                    ath = inj.get("athlete", {}) or {}
+                    p_name = ath.get("displayName", "").strip()
+                    if not p_name:
+                        continue
+
+                    status = str(inj.get("status", "Questionable")).strip()
+                    team_obj = ath.get("team", {}) or {}
+                    t_abbr = str(team_obj.get("abbreviation", "")).upper().strip()
+                    pos_obj = ath.get("position", {}) or {}
+                    pos_abbr = str(pos_obj.get("abbreviation", "")).upper().strip()
+
+                    details = inj.get("details", {}) or {}
+                    injury_type = str(details.get("type", "")).strip()
+                    detail_desc = str(details.get("detail", "")).strip()
+                    comment = str(inj.get("shortComment", "") or inj.get("longComment", "")).strip()
+
+                    # Format clear injury detail
+                    if injury_type and injury_type.lower() not in ["not specified", "unknown"]:
+                        detail_str = f"{injury_type} ({status})"
+                    else:
+                        detail_str = status
+
+                    if comment:
+                        # Extract first sentence or snippet
+                        first_sentence = comment.split(".")[0].strip()
+                        if first_sentence and len(first_sentence) < 80:
+                            detail_str = f"{detail_str} - {first_sentence}"
+
+                    headshot = ath.get("headshot", {}) or {}
+                    headshot_url = headshot.get("href", "")
+
+                    record = {
+                        "player_name": p_name,
+                        "nfl_team": t_abbr,
+                        "position": pos_abbr,
+                        "status": status,
+                        "detail": detail_str,
+                        "comment": comment,
+                        "headshot_url": headshot_url,
+                        "date": inj.get("date", "")
+                    }
+
+                    norm_name = p_name.lower().strip()
+                    injury_lookup[norm_name] = record
+                    if t_abbr:
+                        injury_lookup[f"{norm_name}_{t_abbr.lower()}"] = record
+
+            self.injury_cache = injury_lookup
+            self.last_injury_fetched = now
+            return injury_lookup
+
+        except Exception as e:
+            logger.warning(f"Error fetching ESPN NFL injuries: {e}")
+            return self.injury_cache
 
     def get_team_game_status(self, team_abbr: Optional[str]) -> TeamGameInfo:
         """Get game progress, minutes elapsed, and redzone status for an NFL team abbreviation."""

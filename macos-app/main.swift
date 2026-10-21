@@ -58,6 +58,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var soundThemePopup: NSPopUpButton?
     var previewSoundPlayer: NSSound?
     var selectedSoundTheme: String = "fox_horn"
+
+    var isHighlightsEnabled: Bool = true
+    var highlightsCheckbox: NSButton?
+    var isInjuriesEnabled: Bool = true
+    var injuriesCheckbox: NSButton?
+    var isInjurySoundEnabled: Bool = true
+    var injurySoundCheckbox: NSButton?
+    var injurySoundThemePopup: NSPopUpButton?
+    var selectedInjurySoundTheme: String = "whistle_blow"
     var mouseTrackingTimer: Timer?
     var isHoveringHUD: Bool = false
 
@@ -179,6 +188,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         menu.addItem(NSMenuItem(title: "📋 View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
         menu.addItem(NSMenuItem(title: "🔄 Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
         menu.addItem(NSMenuItem.separator())
+        let hlTitle = isHighlightsEnabled ? "💥 Highlights: ON" : "💥 Highlights: OFF"
+        menu.addItem(NSMenuItem(title: hlTitle, action: #selector(toggleHighlights), keyEquivalent: ""))
+        let injTitle = isInjuriesEnabled ? "🚑 Injury Alerts: ON" : "🚑 Injury Alerts: OFF"
+        menu.addItem(NSMenuItem(title: injTitle, action: #selector(toggleInjuries), keyEquivalent: ""))
+        let soundTitle = isSoundEnabled ? "🔊 Highlight Sound FX: ON" : "🔇 Highlight Sound FX: MUTED"
+        menu.addItem(NSMenuItem(title: soundTitle, action: #selector(toggleSound), keyEquivalent: ""))
+        let injSoundTitle = isInjurySoundEnabled ? "📯 Injury Sound FX: ON" : "🔇 Injury Sound FX: MUTED"
+        menu.addItem(NSMenuItem(title: injSoundTitle, action: #selector(toggleInjurySound), keyEquivalent: ""))
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit NFL Fantasy HUD", action: #selector(quitApp), keyEquivalent: "q"))
         return menu
     }
@@ -204,7 +222,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         appMenu.addItem(NSMenuItem(title: "Preferences / Setup (Cmd+S)...", action: #selector(showSetupDialog), keyEquivalent: "s"))
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(NSMenuItem(title: "Toggle HUD (Cmd+H)", action: #selector(toggleHUD), keyEquivalent: "h"))
+        appMenu.addItem(NSMenuItem(title: isHighlightsEnabled ? "Disable Highlights" : "Enable Highlights", action: #selector(toggleHighlights), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem(title: isInjuriesEnabled ? "Disable Injury Alerts" : "Enable Injury Alerts", action: #selector(toggleInjuries), keyEquivalent: ""))
         appMenu.addItem(NSMenuItem(title: "Toggle Highlight Sound (Cmd+M)", action: #selector(toggleSound), keyEquivalent: "m"))
+        appMenu.addItem(NSMenuItem(title: isInjurySoundEnabled ? "Disable Injury Sound FX" : "Enable Injury Sound FX", action: #selector(toggleInjurySound), keyEquivalent: ""))
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
         appMenuItem.submenu = appMenu
@@ -250,8 +271,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         
         let debugItem = NSMenuItem(title: isDebugMode ? "🪲 Debug Mode: ON (Clickable)" : "🪲 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d")
         menu.addItem(debugItem)
+        menu.addItem(NSMenuItem.separator())
+        let hlTitle = isHighlightsEnabled ? "💥 Highlights: ON" : "💥 Highlights: OFF"
+        menu.addItem(NSMenuItem(title: hlTitle, action: #selector(toggleHighlights), keyEquivalent: ""))
+        let injTitle = isInjuriesEnabled ? "🚑 Injury Alerts: ON" : "🚑 Injury Alerts: OFF"
+        menu.addItem(NSMenuItem(title: injTitle, action: #selector(toggleInjuries), keyEquivalent: ""))
         let soundTitle = isSoundEnabled ? "🔊 Highlight Sound FX: ON (Cmd+M)" : "🔇 Highlight Sound FX: MUTED (Cmd+M)"
         menu.addItem(NSMenuItem(title: soundTitle, action: #selector(toggleSound), keyEquivalent: "m"))
+        let injSoundTitle = isInjurySoundEnabled ? "📯 Injury Sound FX: ON" : "🔇 Injury Sound FX: MUTED"
+        menu.addItem(NSMenuItem(title: injSoundTitle, action: #selector(toggleInjurySound), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "📋 View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
         menu.addItem(NSMenuItem(title: "🔄 Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
 
@@ -480,7 +508,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     func createSetupWindow() {
         let width: CGFloat = 520
-        let height: CGFloat = 505
+        let height: CGFloat = 635
         let rect = NSRect(x: 0, y: 0, width: width, height: height)
 
         setupWindow = NSWindow(
@@ -574,21 +602,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         weekPopup.selectItem(at: 0)
         contentView.addSubview(weekPopup)
 
-        // 6. Highlight Audio FX Toggle Checkbox (User setting in Welcome Dialogue)
-        let soundBtn = NSButton(checkboxWithTitle: "Enable Highlight Audio FX on Big Plays (Cmd+M)", target: self, action: #selector(onSoundCheckboxToggled))
-        soundBtn.frame = NSRect(x: 24, y: height - 290, width: width - 48, height: 22)
+        // 6. Highlights Feature Toggle Checkbox
+        let hlBtn = NSButton(checkboxWithTitle: "Enable Big Play Highlights (Banners & Popups)", target: self, action: #selector(onHighlightsCheckboxToggled))
+        hlBtn.frame = NSRect(x: 24, y: height - 290, width: width - 48, height: 22)
+        hlBtn.state = isHighlightsEnabled ? .on : .off
+        hlBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        contentView.addSubview(hlBtn)
+        self.highlightsCheckbox = hlBtn
+
+        // 7. Highlight Audio FX Toggle Checkbox
+        let soundBtn = NSButton(checkboxWithTitle: "Enable Highlight Sound FX on Big Plays (Cmd+M)", target: self, action: #selector(onSoundCheckboxToggled))
+        soundBtn.frame = NSRect(x: 24, y: height - 316, width: width - 48, height: 22)
         soundBtn.state = isSoundEnabled ? .on : .off
         soundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(soundBtn)
         self.soundCheckbox = soundBtn
 
-        // 7. Highlight Sound Theme Selector & Preview
+        // 8. Highlight Sound Theme Selector & Preview
         let soundThemeLabel = NSTextField(labelWithString: "Highlight Sound:")
         soundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        soundThemeLabel.frame = NSRect(x: 24, y: height - 326, width: 140, height: 20)
+        soundThemeLabel.frame = NSRect(x: 24, y: height - 348, width: 140, height: 20)
         contentView.addSubview(soundThemeLabel)
 
-        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 330, width: width - 292, height: 26))
+        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 352, width: width - 292, height: 26))
         soundTheme.addItem(withTitle: "🏈 NFL on FOX / Stadium Horn")
         soundTheme.addItem(withTitle: "⚡ NFL RedZone Chime Alert")
         soundTheme.addItem(withTitle: "🚨 Touchdown Siren & Horn")
@@ -597,12 +633,50 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(soundTheme)
         self.soundThemePopup = soundTheme
 
-        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 331, width: 94, height: 28))
+        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 353, width: 94, height: 28))
         testSoundBtn.title = "▶ Preview"
         testSoundBtn.bezelStyle = .rounded
         testSoundBtn.target = self
         testSoundBtn.action = #selector(onPreviewSoundClicked)
         contentView.addSubview(testSoundBtn)
+
+        // 9. Live In-Game Injury Alerts Toggle Checkbox
+        let injBtn = NSButton(checkboxWithTitle: "Enable In-Game Injury Alerts for Owned Players", target: self, action: #selector(onInjuriesCheckboxToggled))
+        injBtn.frame = NSRect(x: 24, y: height - 390, width: width - 48, height: 22)
+        injBtn.state = isInjuriesEnabled ? .on : .off
+        injBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        contentView.addSubview(injBtn)
+        self.injuriesCheckbox = injBtn
+
+        // 10. Injury Audio Alert FX Toggle Checkbox
+        let injSoundBtn = NSButton(checkboxWithTitle: "Enable Negative Injury Audio FX (Referee Whistle / Buzzer)", target: self, action: #selector(onInjurySoundCheckboxToggled))
+        injSoundBtn.frame = NSRect(x: 24, y: height - 416, width: width - 48, height: 22)
+        injSoundBtn.state = isInjurySoundEnabled ? .on : .off
+        injSoundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        contentView.addSubview(injSoundBtn)
+        self.injurySoundCheckbox = injSoundBtn
+
+        // 11. Injury Sound Theme Selector & Preview
+        let injSoundThemeLabel = NSTextField(labelWithString: "Injury Sound:")
+        injSoundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        injSoundThemeLabel.frame = NSRect(x: 24, y: height - 448, width: 140, height: 20)
+        contentView.addSubview(injSoundThemeLabel)
+
+        let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 452, width: width - 292, height: 26))
+        injSoundTheme.addItem(withTitle: "📯 Referee Whistle Trill (Default)")
+        injSoundTheme.addItem(withTitle: "🚨 Flat Rejection Buzzer")
+        injSoundTheme.addItem(withTitle: "📉 Heart Monitor Flatline")
+        injSoundTheme.addItem(withTitle: "💿 Vinyl Record Scratch")
+        injSoundTheme.selectItem(at: 0)
+        contentView.addSubview(injSoundTheme)
+        self.injurySoundThemePopup = injSoundTheme
+
+        let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 453, width: 94, height: 28))
+        testInjSoundBtn.title = "▶ Preview"
+        testInjSoundBtn.bezelStyle = .rounded
+        testInjSoundBtn.target = self
+        testInjSoundBtn.action = #selector(onPreviewInjurySoundClicked)
+        contentView.addSubview(testInjSoundBtn)
 
         // Server Status Indicator
         statusLabel = NSTextField(labelWithString: "Checking backend...")
@@ -638,24 +712,85 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         setupWindow?.contentView = contentView
     }
 
+    func playSoundPreview(filename: String) {
+        writeLogLine("Playing sound preview for: \(filename)")
+        var soundURL: URL? = nil
+
+        // 1. Check inside App Bundle Resources/sounds/
+        if let bundleSounds = Bundle.main.resourceURL?.appendingPathComponent("sounds/\(filename)"),
+           FileManager.default.fileExists(atPath: bundleSounds.path) {
+            soundURL = bundleSounds
+        }
+        // 2. Check directly in App Bundle Resources/
+        else if let bundleRes = Bundle.main.resourceURL?.appendingPathComponent(filename),
+                FileManager.default.fileExists(atPath: bundleRes.path) {
+            soundURL = bundleRes
+        }
+        // 3. Fallback: Search in local directory / repo
+        else {
+            let possiblePaths = [
+                FileManager.default.currentDirectoryPath + "/static/sounds/" + filename,
+                Bundle.main.bundleURL.deletingLastPathComponent().path + "/static/sounds/" + filename,
+                NSHomeDirectory() + "/Documents/GitHub/NFL-Fantasy-Live-Game-HUD/static/sounds/" + filename
+            ]
+            for p in possiblePaths {
+                if FileManager.default.fileExists(atPath: p) {
+                    soundURL = URL(fileURLWithPath: p)
+                    break
+                }
+            }
+        }
+
+        if let validURL = soundURL {
+            writeLogLine("Found local audio file at: \(validURL.path)")
+            previewSoundPlayer?.stop()
+            previewSoundPlayer = NSSound(contentsOf: validURL, byReference: true)
+            previewSoundPlayer?.volume = 0.95
+            previewSoundPlayer?.play()
+        } else {
+            writeLogLine("Sound preview file not found locally: \(filename). Attempting remote fallback...")
+            if let remoteURL = URL(string: "\(serverURL)/static/sounds/\(filename)") {
+                URLSession.shared.dataTask(with: remoteURL) { [weak self] data, _, _ in
+                    guard let data = data, let self = self else { return }
+                    DispatchQueue.main.async {
+                        self.previewSoundPlayer?.stop()
+                        self.previewSoundPlayer = NSSound(data: data)
+                        self.previewSoundPlayer?.volume = 0.95
+                        self.previewSoundPlayer?.play()
+                    }
+                }.resume()
+            }
+        }
+    }
+
     @objc func onSoundCheckboxToggled() {
-        isSoundEnabled = (soundCheckbox?.state == .on)
-        writeLogLine("Sound checkbox toggled in setup dialog: \(isSoundEnabled)")
-        webView?.evaluateJavaScript("if (window.hud) window.hud.setSound(\(isSoundEnabled));", completionHandler: nil)
-        buildStatusBarMenu()
+        setSoundEnabled(soundCheckbox?.state == .on)
     }
 
     @objc func onPreviewSoundClicked() {
         let idx = soundThemePopup?.indexOfSelectedItem ?? 0
         let filenames = ["nfl_fox_horn.wav", "nfl_redzone_alert.wav", "nfl_touchdown_siren.wav", "nfl_brass_fanfare.wav"]
         let fn = filenames[min(max(idx, 0), filenames.count - 1)]
-        writeLogLine("Previewing sound: \(fn)")
-        if let url = URL(string: "\(serverURL)/static/sounds/\(fn)") {
-            previewSoundPlayer?.stop()
-            previewSoundPlayer = NSSound(contentsOf: url, byReference: true)
-            previewSoundPlayer?.volume = 0.95
-            previewSoundPlayer?.play()
-        }
+        playSoundPreview(filename: fn)
+    }
+
+    @objc func onHighlightsCheckboxToggled() {
+        setHighlightsEnabled(highlightsCheckbox?.state == .on)
+    }
+
+    @objc func onInjuriesCheckboxToggled() {
+        setInjuriesEnabled(injuriesCheckbox?.state == .on)
+    }
+
+    @objc func onInjurySoundCheckboxToggled() {
+        setInjurySoundEnabled(injurySoundCheckbox?.state == .on)
+    }
+
+    @objc func onPreviewInjurySoundClicked() {
+        let idx = injurySoundThemePopup?.indexOfSelectedItem ?? 0
+        let filenames = ["injury_whistle.wav", "injury_buzzer.wav", "injury_flatline.wav", "injury_record_scratch.wav"]
+        let fn = filenames[min(max(idx, 0), filenames.count - 1)]
+        playSoundPreview(filename: fn)
     }
 
     func refreshScreenList() {
@@ -738,11 +873,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         let weekIndex = weekPopup.indexOfSelectedItem
         let weekParam: Int? = (weekIndex > 0) ? weekIndex : nil
 
+        isSoundEnabled = (soundCheckbox?.state == .on)
+        isHighlightsEnabled = (highlightsCheckbox?.state == .on)
+        isInjuriesEnabled = (injuriesCheckbox?.state == .on)
+        isInjurySoundEnabled = (injurySoundCheckbox?.state == .on)
+
         let themeIndex = soundThemePopup?.indexOfSelectedItem ?? 0
         let themeKeys = ["fox_horn", "redzone", "td_siren", "brass_fanfare"]
         let soundThemeParam = themeKeys[min(max(themeIndex, 0), themeKeys.count - 1)]
         selectedSoundTheme = soundThemeParam
-        isSoundEnabled = (soundCheckbox?.state == .on)
+
+        let injThemeIdx = injurySoundThemePopup?.indexOfSelectedItem ?? 0
+        let injThemeKeys = ["whistle_blow", "buzzer_flat", "flatline", "record_scratch"]
+        selectedInjurySoundTheme = injThemeKeys[min(max(injThemeIdx, 0), injThemeKeys.count - 1)]
 
         launchBtn.isEnabled = false
         statusLabel.stringValue = "⏳ Verifying backend engine connection..."
@@ -754,7 +897,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
             if isHealthy {
                 writeLogLine("Backend is already running and healthy.")
-                self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme) {
+                self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
                     DispatchQueue.main.async {
                         self.setupWindow?.orderOut(nil)
                         self.launchBtn.isEnabled = true
@@ -770,7 +913,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                         self.launchBtn.isEnabled = true
                         if success {
                             writeLogLine("Backend launched successfully.")
-                            self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme) {
+                            self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
                                 DispatchQueue.main.async {
                                     self.setupWindow?.orderOut(nil)
                                     self.startHUD()
@@ -798,7 +941,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
     }
 
-    func pushSettingsToBackend(leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, completion: @escaping () -> Void) {
+    func pushSettingsToBackend(leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, highlightsEnabled: Bool = true, injuriesEnabled: Bool = true, injurySoundEnabled: Bool = true, injurySoundTheme: String = "whistle_blow", completion: @escaping () -> Void) {
         let group = DispatchGroup()
 
         // 0. Post target Sleeper league ID to preload latest manager avatars and league data
@@ -822,7 +965,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                 "mode": mode,
                 "speed": speed,
                 "sound_enabled": soundEnabled,
-                "sound_theme": soundTheme
+                "sound_theme": soundTheme,
+                "highlights_enabled": highlightsEnabled,
+                "injuries_enabled": injuriesEnabled,
+                "injury_sound_enabled": injurySoundEnabled,
+                "injury_sound_theme": injurySoundTheme
             ]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
             
@@ -1077,12 +1224,85 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         bringHUDToFront()
     }
 
-    @objc func toggleSound() {
-        isSoundEnabled = !isSoundEnabled
-        soundCheckbox?.state = isSoundEnabled ? .on : .off
-        writeLogLine("Highlight sound toggled: \(isSoundEnabled)")
-        webView?.evaluateJavaScript("if (window.hud) window.hud.setSound(\(isSoundEnabled));", completionHandler: nil)
+    func setHighlightsEnabled(_ enabled: Bool) {
+        isHighlightsEnabled = enabled
+        highlightsCheckbox?.state = isHighlightsEnabled ? .on : .off
+        writeLogLine("Highlights enabled set to: \(isHighlightsEnabled)")
+        if let url = URL(string: "\(serverURL)/api/settings/highlights") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body = ["highlights_enabled": isHighlightsEnabled]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: req).resume()
+        }
+        setupMenuBar()
         buildStatusBarMenu()
+    }
+
+    func setInjuriesEnabled(_ enabled: Bool) {
+        isInjuriesEnabled = enabled
+        injuriesCheckbox?.state = isInjuriesEnabled ? .on : .off
+        writeLogLine("Injuries enabled set to: \(isInjuriesEnabled)")
+        if let url = URL(string: "\(serverURL)/api/settings/injuries") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body = ["injuries_enabled": isInjuriesEnabled]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: req).resume()
+        }
+        setupMenuBar()
+        buildStatusBarMenu()
+    }
+
+    func setSoundEnabled(_ enabled: Bool) {
+        isSoundEnabled = enabled
+        soundCheckbox?.state = isSoundEnabled ? .on : .off
+        writeLogLine("Highlight sound enabled set to: \(isSoundEnabled)")
+        webView?.evaluateJavaScript("if (window.hud) window.hud.setSound(\(isSoundEnabled));", completionHandler: nil)
+        if let url = URL(string: "\(serverURL)/api/settings/sound") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body = ["sound_enabled": isSoundEnabled]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: req).resume()
+        }
+        setupMenuBar()
+        buildStatusBarMenu()
+    }
+
+    func setInjurySoundEnabled(_ enabled: Bool) {
+        isInjurySoundEnabled = enabled
+        injurySoundCheckbox?.state = isInjurySoundEnabled ? .on : .off
+        writeLogLine("Injury sound enabled set to: \(isInjurySoundEnabled)")
+        if let url = URL(string: "\(serverURL)/api/settings/injury-sound") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body = ["injury_sound_enabled": isInjurySoundEnabled]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: req).resume()
+        }
+        setupMenuBar()
+        buildStatusBarMenu()
+    }
+
+    @objc func toggleHighlights() {
+        setHighlightsEnabled(!isHighlightsEnabled)
+    }
+
+    @objc func toggleInjuries() {
+        setInjuriesEnabled(!isInjuriesEnabled)
+    }
+
+    @objc func toggleSound() {
+        setSoundEnabled(!isSoundEnabled)
+    }
+
+    @objc func toggleInjurySound() {
+        setInjurySoundEnabled(!isInjurySoundEnabled)
     }
 
     @objc func toggleHUD() {

@@ -36,6 +36,13 @@ if [ -f "AppIcon.icns" ]; then
     cp "AppIcon.icns" "${RESOURCES_DIR}/AppIcon.icns"
 fi
 
+# Copy Sound FX files into app bundle resources for offline preview
+if [ -d "static/sounds" ]; then
+    echo "📦 Bundling Sound FX into ${RESOURCES_DIR}/sounds..."
+    mkdir -p "${RESOURCES_DIR}/sounds"
+    cp -R static/sounds/* "${RESOURCES_DIR}/sounds/"
+fi
+
 # Compile Swift code
 swiftc macos-app/main.swift \
     -O \

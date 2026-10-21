@@ -626,6 +626,32 @@
       </div>
     </header>
 
+    <!-- Master HUD Alert & Sound Feature Toggles -->
+    <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">🎛️</span>
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: #fff;">
+            HUD Features & Alerts Master Toggles
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            Schalte Highlight-Banners oder Injury-Alerts sowie die jeweiligen Audio-Sounds unabhängig voneinander ein oder aus.
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button id="toggle-highlights-btn" class="btn-active" onclick="toggleHighlights()">
+          <span id="highlights-status-icon">💥</span> Highlights: <span id="highlights-status-text">ON</span>
+        </button>
+        <button id="toggle-injuries-btn" class="btn-active" style="border-color: #ef4444 !important; background: rgba(239, 68, 68, 0.2) !important; color: #fca5a5 !important;" onclick="toggleInjuries()">
+          <span id="injuries-status-icon">🚑</span> Injuries: <span id="injuries-status-text">ON</span>
+        </button>
+        <button id="toggle-injury-sound-btn" class="btn-active" onclick="toggleInjurySound()">
+          <span id="injury-sound-icon">📯</span> Injury Sound: <span id="injury-sound-text">ON</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Active League Switcher & Scalability Bar -->
     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
       <div style="display: flex; align-items: center; gap: 10px;">
@@ -757,7 +783,93 @@
             <button class="btn-pink" onclick="triggerCustomHighlight()">🔥 Push to Live Overlay</button>
           </div>
         </div>
+      
+
+      <!-- Live Injury Alert & Negative Sound Station -->
+      <div class="card full-width" style="border-color: rgba(239, 68, 68, 0.45); background: rgba(28, 8, 12, 0.88);">
+        <h2>
+          <div class="card-title-left">
+            <span>🚑 Live In-Game Injury Alert & Negative Sound Station</span>
+            <span id="injury-badge-status" class="status-badge" style="background: rgba(239, 68, 68, 0.25); border-color: #ef4444; color: #fca5a5;">INJURIES ACTIVE</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <select id="injury-sound-theme-select" onchange="changeInjurySoundTheme(this.value)" style="padding: 7px 10px; font-size: 12px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(239, 68, 68, 0.4); color: #fff; border-radius: 6px; cursor: pointer;">
+              <option value="whistle_blow">📯 Referee Whistle Trill (Default)</option>
+              <option value="buzzer_flat">🚨 Flat Rejection Buzzer</option>
+              <option value="flatline">📉 Heart Monitor Flatline</option>
+              <option value="record_scratch">💿 Vinyl Record Scratch</option>
+            </select>
+            <button id="btn-toggle-inj-sound" class="btn-active" style="border-color: #ef4444 !important; background: rgba(239, 68, 68, 0.25) !important; color: #fee2e2 !important;" onclick="toggleInjurySound()">
+              <span id="btn-inj-sound-icon">📯</span> Toggle Injury FX
+            </button>
+            <button class="btn-orange" style="border-color: #ef4444; color: #fca5a5; background: rgba(239, 68, 68, 0.15);" onclick="playActiveInjurySound()">
+              ▶ Play Active Injury FX
+            </button>
+          </div>
+        </h2>
+        <div style="margin-top: 8px; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.25);">
+          <span style="font-size: 11px; font-weight: 800; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.06em;">Audition Negative Sounds:</span>
+          <button style="font-size: 12px; padding: 4px 10px; border-color: rgba(239,68,68,0.35);" onclick="previewInjurySoundDirect('whistle_blow')">📯 Referee Whistle</button>
+          <button style="font-size: 12px; padding: 4px 10px; border-color: rgba(239,68,68,0.35);" onclick="previewInjurySoundDirect('buzzer_flat')">🚨 Flat Buzzer</button>
+          <button style="font-size: 12px; padding: 4px 10px; border-color: rgba(239,68,68,0.35);" onclick="previewInjurySoundDirect('flatline')">📉 Monitor Flatline</button>
+          <button style="font-size: 12px; padding: 4px 10px; border-color: rgba(239,68,68,0.35);" onclick="previewInjurySoundDirect('record_scratch')">💿 Vinyl Scratch</button>
+        </div>
+        <p class="subtext" style="color: #cbd5e1;">
+          Echtzeit-Verletzungsmeldung für Fantasy-Spieler mit Notfall-Banner, rotem Puls, Status-Badge (Out / Questionable) und konfigurierbarem negativem Soundeffekt:
+        </p>
+
+        <!-- Preset Injury Simulation Buttons -->
+        <div class="btn-group" style="margin-top: 14px;">
+          <button style="background: rgba(239, 68, 68, 0.22); border-color: #ef4444; color: #fee2e2;" onclick="triggerInjuryPreset('CeeDee Lamb', 'Out', 'Shoulder - Out for remainder of game', 'auto', 'WR', 'DAL', 'https://sleepercdn.com/content/nfl/players/6786.jpg')">
+            🚑 CeeDee Lamb [OUT · Shoulder]
+          </button>
+          <button style="background: rgba(245, 158, 11, 0.22); border-color: #f59e0b; color: #fef3c7;" onclick="triggerInjuryPreset('Josh Allen', 'Questionable', 'Ankle - Questionable to Return', 'auto', 'QB', 'BUF', 'https://sleepercdn.com/content/nfl/players/4984.jpg')">
+            ⚠️ Josh Allen [QUESTIONABLE · Ankle]
+          </button>
+          <button style="background: rgba(245, 158, 11, 0.22); border-color: #f59e0b; color: #fef3c7;" onclick="triggerInjuryPreset('Christian McCaffrey', 'Doubtful', 'Achilles - Doubtful to Return', 'auto', 'RB', 'SF', 'https://sleepercdn.com/content/nfl/players/4034.jpg')">
+            ⚠️ Christian McCaffrey [DOUBTFUL · Achilles]
+          </button>
+          <button style="background: rgba(239, 68, 68, 0.22); border-color: #ef4444; color: #fee2e2;" onclick="triggerInjuryPreset('Justin Jefferson', 'Out', 'Hamstring - Ruled Out', 'auto', 'WR', 'MIN', 'https://sleepercdn.com/content/nfl/players/6794.jpg')">
+            🚑 Justin Jefferson [OUT · Hamstring]
+          </button>
+          <button class="btn-orange" style="background: rgba(239, 68, 68, 0.3); border-color: #ef4444; color: #fee2e2;" onclick="simulateRandomInjury()">
+            🎲 Zufällige Live-Verletzung simulieren
+          </button>
+        </div>
+
+        <!-- Custom Injury Form -->
+        <div style="margin-top: 18px; border-top: 1px solid rgba(239,68,68,0.25); padding-top: 14px;">
+          <span style="font-size: 13px; font-weight: 700; color: #fee2e2;">⚙️ Custom Live Injury Alert Push:</span>
+          <div class="form-row">
+            <input type="text" id="inj-player-name" value="CeeDee Lamb" placeholder="Player Name" style="width: 140px; border-color: rgba(239,68,68,0.4);" />
+            <select id="inj-pos" style="width: 75px; border-color: rgba(239,68,68,0.4);">
+              <option value="QB">QB</option>
+              <option value="RB">RB</option>
+              <option value="WR" selected>WR</option>
+              <option value="TE">TE</option>
+              <option value="DEF">DEF</option>
+              <option value="K">K</option>
+            </select>
+            <select id="inj-status" style="width: 130px; border-color: rgba(239,68,68,0.4);">
+              <option value="Out">Out (Ausgeschieden)</option>
+              <option value="Questionable">Questionable (Fraglich)</option>
+              <option value="Doubtful">Doubtful (Zweifelhaft)</option>
+              <option value="IR">Injured Reserve (IR)</option>
+            </select>
+            <input type="text" id="inj-detail" value="Shoulder - Out for game" placeholder="Injury Details" style="flex: 1; min-width: 170px; border-color: rgba(239,68,68,0.4);" />
+            <select id="inj-team" style="width: 180px; border-color: rgba(239,68,68,0.4);">
+              <option value="auto">✨ Auto-Detect Roster Owner</option>
+              <option value="Roster 1">Roster 1</option>
+              <option value="Roster 2">Roster 2</option>
+              <option value="Roster 3">Roster 3</option>
+              <option value="Roster 4">Roster 4</option>
+              <option value="Free Agent">Free Agent</option>
+            </select>
+            <button style="background: rgba(239, 68, 68, 0.35); border-color: #ef4444; color: #fee2e2;" onclick="triggerCustomInjury()">🚑 Push Injury Alert</button>
+          </div>
+        </div>
       </div>
+</div>
 
       <!-- Red Zone Alert & Minutes Played Simulator -->
       <div class="card full-width" style="border-color: rgba(255, 0, 170, 0.35);">
@@ -1643,6 +1755,279 @@
         showToast(`Generated Mock ${teams_count}-Team League!`);
       } catch (e) {
         showToast('Failed to generate mock league');
+      }
+    }
+
+    
+    // =========================================================================
+    // Master Alerts & In-Game Injury Audio System
+    // =========================================================================
+    let highlightsEnabled = true;
+    let injuriesEnabled = true;
+    let injurySoundEnabled = true;
+    let injurySoundTheme = 'whistle_blow';
+
+    const INJURY_SOUNDS = {
+      whistle_blow: '/static/sounds/injury_whistle.wav',
+      buzzer_flat: '/static/sounds/injury_buzzer.wav',
+      flatline: '/static/sounds/injury_flatline.wav',
+      record_scratch: '/static/sounds/injury_record_scratch.wav'
+    };
+
+    function previewInjurySoundDirect(theme) {
+      try {
+        const url = INJURY_SOUNDS[theme] || INJURY_SOUNDS.whistle_blow;
+        const audio = new Audio(url);
+        audio.volume = 0.85;
+        audio.play().catch(e => {
+          showToast('Audio autoplay prevented. Synthesizing sound...');
+          synthesizeInjurySoundAdmin(theme);
+        });
+      } catch (e) {
+        synthesizeInjurySoundAdmin(theme);
+      }
+    }
+
+    function playActiveInjurySound() {
+      previewInjurySoundDirect(injurySoundTheme);
+    }
+
+    async function changeInjurySoundTheme(theme) {
+      injurySoundTheme = theme;
+      previewInjurySoundDirect(theme);
+      try {
+        await fetch('/api/settings/injury-sound-theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ injury_sound_theme: theme })
+        });
+        showToast('Injury Sound Theme updated to: ' + theme);
+      } catch (e) {
+        showToast('Error syncing injury sound theme');
+      }
+    }
+
+    async function toggleHighlights() {
+      highlightsEnabled = !highlightsEnabled;
+      updateTogglesUI();
+      try {
+        await fetch('/api/settings/highlights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ highlights_enabled: highlightsEnabled })
+        });
+        showToast(highlightsEnabled ? '💥 Highlights Enabled' : '⏸️ Highlights Disabled');
+      } catch (e) {
+        showToast('Error updating highlights toggle');
+      }
+    }
+
+    async function toggleInjuries() {
+      injuriesEnabled = !injuriesEnabled;
+      updateTogglesUI();
+      try {
+        await fetch('/api/settings/injuries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ injuries_enabled: injuriesEnabled })
+        });
+        showToast(injuriesEnabled ? '🚑 Injury Alerts Enabled' : '⏸️ Injury Alerts Disabled');
+      } catch (e) {
+        showToast('Error updating injuries toggle');
+      }
+    }
+
+    async function toggleInjurySound() {
+      injurySoundEnabled = !injurySoundEnabled;
+      updateTogglesUI();
+      try {
+        await fetch('/api/settings/injury-sound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ injury_sound_enabled: injurySoundEnabled })
+        });
+        showToast(injurySoundEnabled ? '📯 Injury Sound FX Enabled' : '🔇 Injury Sound FX Muted');
+      } catch (e) {
+        showToast('Error updating injury sound toggle');
+      }
+    }
+
+    function updateTogglesUI() {
+      // Highlights button
+      const hlBtn = document.getElementById('toggle-highlights-btn');
+      const hlText = document.getElementById('highlights-status-text');
+      if (hlBtn && hlText) {
+        hlText.textContent = highlightsEnabled ? 'ON' : 'OFF';
+        hlBtn.classList.toggle('btn-active', highlightsEnabled);
+      }
+
+      // Injuries button & badge
+      const injBtn = document.getElementById('toggle-injuries-btn');
+      const injText = document.getElementById('injuries-status-text');
+      const injBadge = document.getElementById('injury-badge-status');
+      if (injBtn && injText) {
+        injText.textContent = injuriesEnabled ? 'ON' : 'OFF';
+        injBtn.classList.toggle('btn-active', injuriesEnabled);
+      }
+      if (injBadge) {
+        injBadge.textContent = injuriesEnabled ? 'INJURIES ACTIVE' : 'INJURIES MUTED';
+        injBadge.className = injuriesEnabled ? 'status-badge' : 'status-badge muted';
+      }
+
+      // Injury sound button
+      const sndBtn = document.getElementById('toggle-injury-sound-btn');
+      const sndText = document.getElementById('injury-sound-text');
+      const cardSndBtn = document.getElementById('btn-toggle-inj-sound');
+      if (sndBtn && sndText) {
+        sndText.textContent = injurySoundEnabled ? 'ON' : 'MUTED';
+        sndBtn.classList.toggle('btn-active', injurySoundEnabled);
+      }
+      if (cardSndBtn) {
+        cardSndBtn.classList.toggle('btn-active', injurySoundEnabled);
+      }
+    }
+
+    function synthesizeInjurySoundAdmin(theme) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const ctx = audioCtx;
+        const now = ctx.currentTime;
+
+        if (theme === 'whistle_blow') {
+          const dur = 0.75;
+          const master = ctx.createGain();
+          master.gain.setValueAtTime(0.001, now);
+          master.gain.linearRampToValueAtTime(0.35, now + 0.04);
+          master.gain.setValueAtTime(0.35, now + dur - 0.15);
+          master.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          master.connect(ctx.destination);
+
+          const lfo = ctx.createOscillator();
+          lfo.frequency.setValueAtTime(26, now);
+          const lfoGain = ctx.createGain();
+          lfoGain.gain.setValueAtTime(80, now);
+          lfo.connect(lfoGain);
+
+          [2650, 2850].forEach(f => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now);
+            lfoGain.connect(osc.frequency);
+            osc.connect(master);
+            osc.start(now);
+            osc.stop(now + dur);
+          });
+          lfo.start(now);
+          lfo.stop(now + dur);
+        } else if (theme === 'buzzer_flat') {
+          const dur = 0.65;
+          const osc = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(135, now);
+          osc.frequency.exponentialRampToValueAtTime(85, now + dur);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(800, now);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + dur);
+        } else if (theme === 'flatline') {
+          const b1 = ctx.createOscillator();
+          const b1Gain = ctx.createGain();
+          b1.type = 'sine';
+          b1.frequency.setValueAtTime(900, now);
+          b1Gain.gain.setValueAtTime(0.3, now);
+          b1Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          b1.connect(b1Gain);
+          b1Gain.connect(ctx.destination);
+          b1.start(now);
+          b1.stop(now + 0.15);
+
+          const flatOsc = ctx.createOscillator();
+          const flatGain = ctx.createGain();
+          const tFlat = now + 0.28;
+          flatOsc.type = 'sawtooth';
+          flatOsc.frequency.setValueAtTime(320, tFlat);
+          flatOsc.frequency.exponentialRampToValueAtTime(220, tFlat + 0.6);
+          flatGain.gain.setValueAtTime(0.001, tFlat);
+          flatGain.gain.linearRampToValueAtTime(0.28, tFlat + 0.03);
+          flatGain.gain.exponentialRampToValueAtTime(0.001, tFlat + 0.6);
+          flatOsc.connect(flatGain);
+          flatGain.connect(ctx.destination);
+          flatOsc.start(tFlat);
+          flatOsc.stop(tFlat + 0.62);
+        } else {
+          const dur = 0.55;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1800, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + dur);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + dur);
+        }
+      } catch (e) {}
+    }
+
+    async function triggerInjuryPreset(playerName, injuryStatus, injuryDetail, fantasyTeamName, position, nflTeam, headshotUrl) {
+      if (injurySoundEnabled) {
+        previewInjurySoundDirect(injurySoundTheme);
+      }
+      try {
+        const res = await fetch('/api/test/injury', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            player_name: playerName,
+            injury_status: injuryStatus,
+            injury_detail: injuryDetail,
+            fantasy_team_name: fantasyTeamName || 'auto',
+            position: position || 'WR',
+            nfl_team: nflTeam || 'NFL',
+            headshot_url: headshotUrl || null
+          })
+        });
+        const data = await res.json();
+        showToast(`🚑 Live Injury Alert: ${playerName} [${injuryStatus}] sent to HUD!`);
+      } catch (e) {
+        showToast('Error pushing injury alert to overlay');
+      }
+    }
+
+    async function triggerCustomInjury() {
+      const playerName = document.getElementById('inj-player-name').value || 'CeeDee Lamb';
+      const pos = document.getElementById('inj-pos').value || 'WR';
+      const status = document.getElementById('inj-status').value || 'Out';
+      const detail = document.getElementById('inj-detail').value || 'Shoulder - Out for game';
+      const team = document.getElementById('inj-team').value || 'auto';
+
+      triggerInjuryPreset(playerName, status, detail, team, pos, 'NFL', null);
+    }
+
+    async function simulateRandomInjury() {
+      try {
+        const res = await fetch('/api/test/simulate-injury', { method: 'POST' });
+        const data = await res.json();
+        if (data.injury) {
+          if (injurySoundEnabled) previewInjurySoundDirect(injurySoundTheme);
+          showToast(`🚑 Simulated Injury: ${data.injury.player_name} [${data.injury.injury_status}]`);
+        } else {
+          showToast('No active players available to simulate injury');
+        }
+      } catch (e) {
+        showToast('Error simulating injury: ' + e);
       }
     }
 

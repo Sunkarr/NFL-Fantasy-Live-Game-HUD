@@ -53,6 +53,15 @@ class NFLGameHUD {
 
     this.soundEnabled = localStorage.getItem('nfl_hud_sound_enabled') === 'true';
     this.soundTheme = localStorage.getItem('nfl_hud_sound_theme') || 'fox_horn';
+
+    // Highlight & Live Injury Update Toggles and Queues
+    this.highlightsEnabled = localStorage.getItem('nfl_hud_highlights_enabled') !== 'false';
+    this.injuriesEnabled = localStorage.getItem('nfl_hud_injuries_enabled') !== 'false';
+    this.injurySoundEnabled = localStorage.getItem('nfl_hud_injury_sound_enabled') !== 'false';
+    this.injurySoundTheme = localStorage.getItem('nfl_hud_injury_sound_theme') || 'whistle_blow';
+    this.injuryQueue = [];
+    this.currentInjury = null;
+    this.injuryTimer = null;
     this.audioCtx = null;
     this.toastTimer = null;
 
@@ -143,6 +152,9 @@ class NFLGameHUD {
       case 'PUSH_HIGHLIGHT':
         this.enqueueHighlight(msg.highlight);
         break;
+      case 'PUSH_INJURY':
+        this.enqueueInjury(msg.injury);
+        break;
       case 'UPDATE_DISPLAY_SETTINGS':
         this.applyDisplaySettings(msg.settings);
         break;
@@ -202,6 +214,22 @@ class NFLGameHUD {
     if (settings.sound_theme) {
       this.soundTheme = settings.sound_theme;
       localStorage.setItem('nfl_hud_sound_theme', this.soundTheme);
+    }
+    if (typeof settings.highlights_enabled === 'boolean') {
+      this.highlightsEnabled = settings.highlights_enabled;
+      localStorage.setItem('nfl_hud_highlights_enabled', this.highlightsEnabled ? 'true' : 'false');
+    }
+    if (typeof settings.injuries_enabled === 'boolean') {
+      this.injuriesEnabled = settings.injuries_enabled;
+      localStorage.setItem('nfl_hud_injuries_enabled', this.injuriesEnabled ? 'true' : 'false');
+    }
+    if (typeof settings.injury_sound_enabled === 'boolean') {
+      this.injurySoundEnabled = settings.injury_sound_enabled;
+      localStorage.setItem('nfl_hud_injury_sound_enabled', this.injurySoundEnabled ? 'true' : 'false');
+    }
+    if (settings.injury_sound_theme) {
+      this.injurySoundTheme = settings.injury_sound_theme;
+      localStorage.setItem('nfl_hud_injury_sound_theme', this.injurySoundTheme);
     }
     
     if (speedChanged) {
@@ -728,7 +756,7 @@ class NFLGameHUD {
   }
 
   enqueueHighlight(highlight) {
-    if (!highlight) return;
+    if (!this.highlightsEnabled || !highlight) return;
     this.highlightQueue.push(highlight);
     
     if (!this.currentHighlight) {
@@ -760,6 +788,12 @@ class NFLGameHUD {
   }
 
   playNextHighlight() {
+    if (!this.highlightsEnabled) {
+      this.highlightQueue = [];
+      this.currentHighlight = null;
+      if (!this.currentInjury) this.startIdleSpotlightCycle(true);
+      return;
+    }
     if (this.highlightQueue.length === 0) {
       this.currentHighlight = null;
       this.startIdleSpotlightCycle(true);

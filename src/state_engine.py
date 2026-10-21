@@ -7,7 +7,7 @@ from typing import List, Dict, Optional, Any, Tuple
 
 from src.models import (
     HUDState, MatchupData, TeamScore, PlayerInfo,
-    HighlightEvent, IdleSpotlight, DisplaySettings
+    HighlightEvent, IdleSpotlight, DisplaySettings, InjuryAlertEvent
 )
 from src.sleeper_client import SleeperClient
 from src.nfl_game_tracker import NFLGameTracker
@@ -58,8 +58,8 @@ class HUDStateEngine:
     """
     Central orchestration engine for NFL Fantasy Live Game HUD.
     Maintains active matchup trees, player points history, delta detections,
-    position-by-position active roster players rotation (starters and bench),
-    and multi-matchup display modes.
+    live in-game injury alerts for owned players, position-by-position active
+    roster players rotation (starters and bench), and multi-matchup display modes.
     """
 
     def __init__(self, ws_manager: ConnectionManager):
@@ -70,7 +70,9 @@ class HUDStateEngine:
         self.current_state: Optional[HUDState] = None
         self.prev_player_points: Dict[str, float] = {}  # pid -> last seen points
         self.prev_player_stats: Dict[str, Dict[str, Any]] = {}
+        self.prev_injury_statuses: Dict[str, str] = {}  # pid -> last known injury status ("Healthy", "Questionable", "Out", etc.)
         self.highlight_queue: List[HighlightEvent] = []
+        self.injury_queue: List[InjuryAlertEvent] = []
         self.is_bootstrapped: bool = False
         self.user_team_name: str = TEAM_NAME.lower()
         self.player_to_roster: Dict[str, Dict[str, Any]] = {}
@@ -82,7 +84,13 @@ class HUDStateEngine:
             mode="auto",
             speed="normal",
             step_interval_seconds=10,
-            ticker_speed=35
+            ticker_speed=35,
+            highlights_enabled=True,
+            sound_enabled=True,
+            sound_theme="fox_horn",
+            injuries_enabled=True,
+            injury_sound_enabled=True,
+            injury_sound_theme="whistle_blow"
         )
 
         # Simulation & Testing
@@ -116,7 +124,9 @@ class HUDStateEngine:
         self.league_meta_cache = {}
         self.prev_player_points = {}
         self.prev_player_stats = {}
+        self.prev_injury_statuses = {}
         self.highlight_queue.clear()
+        self.injury_queue.clear()
         self.clear_mock_overrides()
         logger.info(f"Sleeper League ID switched to: {cleaned_id}")
 
@@ -134,10 +144,14 @@ class HUDStateEngine:
         speed: Optional[str] = None,
         interval: Optional[int] = None,
         ticker_speed: Optional[int] = None,
+        highlights_enabled: Optional[bool] = None,
         sound_enabled: Optional[bool] = None,
-        sound_theme: Optional[str] = None
+        sound_theme: Optional[str] = None,
+        injuries_enabled: Optional[bool] = None,
+        injury_sound_enabled: Optional[bool] = None,
+        injury_sound_theme: Optional[str] = None
     ) -> DisplaySettings:
-        """Update display mode and animation speed parameters."""
+        """Update display mode, animation speed, highlight and injury alert parameters."""
         if mode in ["auto", "ticker", "step", "paged"]:
             self.display_settings.mode = "step" if mode == "paged" else mode
         
@@ -157,10 +171,18 @@ class HUDStateEngine:
             self.display_settings.step_interval_seconds = interval
         if ticker_speed and ticker_speed >= 10:
             self.display_settings.ticker_speed = ticker_speed
+        if highlights_enabled is not None:
+            self.display_settings.highlights_enabled = highlights_enabled
         if sound_enabled is not None:
             self.display_settings.sound_enabled = sound_enabled
         if sound_theme in ["fox_horn", "redzone", "td_siren", "brass_fanfare"]:
             self.display_settings.sound_theme = sound_theme
+        if injuries_enabled is not None:
+            self.display_settings.injuries_enabled = injuries_enabled
+        if injury_sound_enabled is not None:
+            self.display_settings.injury_sound_enabled = injury_sound_enabled
+        if injury_sound_theme in ["whistle_blow", "buzzer_flat", "flatline", "record_scratch"]:
+            self.display_settings.injury_sound_theme = injury_sound_theme
 
         logger.info(f"Display settings updated: {self.display_settings.model_dump()}")
         return self.display_settings
@@ -281,9 +303,7 @@ class HUDStateEngine:
                 win_probability_a=round(50 + (pts_a - pts_b) * 1.5, 1)
             ))
 
-        # Mock rotation through active players: QB -> RB -> WR -> TE -> K -> DEF
         mock_spotlights = [
-            # --- QBs ---
             IdleSpotlight(
                 player_id="4984",
                 player_name="Josh Allen",
@@ -317,39 +337,6 @@ class HUDStateEngine:
                 rank=2
             ),
             IdleSpotlight(
-                player_id="4046",
-                player_name="Patrick Mahomes",
-                position="QB",
-                nfl_team="KC",
-                fantasy_team_name="Golden Strikers",
-                manager_name="Golden Strikers",
-                points=21.5,
-                headshot_url="https://sleepercdn.com/content/nfl/players/4046.jpg",
-                title="#3 QB · GOLDEN STRIKERS",
-                color_accent="#ffaa00",
-                is_free_agent=False,
-                is_starter=True,
-                roster_slot="STARTER",
-                rank=3
-            ),
-            IdleSpotlight(
-                player_id="4983",
-                player_name="Baker Mayfield",
-                position="QB",
-                nfl_team="TB",
-                fantasy_team_name="Emerald Vipers",
-                manager_name="Emerald Vipers",
-                points=18.2,
-                headshot_url="https://sleepercdn.com/content/nfl/players/4983.jpg",
-                title="#4 QB · EMERALD VIPERS",
-                color_accent="#00e676",
-                is_free_agent=False,
-                is_starter=False,
-                roster_slot="BENCH",
-                rank=4
-            ),
-            # --- RBs ---
-            IdleSpotlight(
                 player_id="6813",
                 player_name="Jonathan Taylor",
                 position="RB",
@@ -366,38 +353,21 @@ class HUDStateEngine:
                 rank=1
             ),
             IdleSpotlight(
-                player_id="4866",
-                player_name="Saquon Barkley",
+                player_id="9226",
+                player_name="Bijan Robinson",
                 position="RB",
-                nfl_team="PHI",
+                nfl_team="ATL",
                 fantasy_team_name="Cyber Blitz",
                 manager_name="Cyber Blitz",
-                points=26.1,
-                headshot_url="https://sleepercdn.com/content/nfl/players/4866.jpg",
+                points=22.4,
+                headshot_url="https://sleepercdn.com/content/nfl/players/9226.jpg",
                 title="#2 RB · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
-                is_starter=True,
-                roster_slot="STARTER",
-                rank=2
-            ),
-            IdleSpotlight(
-                player_id="5892",
-                player_name="David Montgomery",
-                position="RB",
-                nfl_team="DET",
-                fantasy_team_name="Quantum Knights",
-                manager_name="Quantum Knights",
-                points=17.5,
-                headshot_url="https://sleepercdn.com/content/nfl/players/5892.jpg",
-                title="#3 RB · QUANTUM KNIGHTS",
-                color_accent="#a855f7",
-                is_free_agent=False,
                 is_starter=False,
                 roster_slot="BENCH",
-                rank=3
+                rank=2
             ),
-            # --- WRs ---
             IdleSpotlight(
                 player_id="6794",
                 player_name="Justin Jefferson",
@@ -421,32 +391,15 @@ class HUDStateEngine:
                 nfl_team="DAL",
                 fantasy_team_name="Cyber Blitz",
                 manager_name="Cyber Blitz",
-                points=23.4,
+                points=18.6,
                 headshot_url="https://sleepercdn.com/content/nfl/players/6786.jpg",
                 title="#2 WR · CYBER BLITZ",
                 color_accent="#00f0ff",
                 is_free_agent=False,
-                is_starter=True,
-                roster_slot="STARTER",
-                rank=2
-            ),
-            IdleSpotlight(
-                player_id="11632",
-                player_name="Malik Nabers",
-                position="WR",
-                nfl_team="NYG",
-                fantasy_team_name="Golden Strikers",
-                manager_name="Golden Strikers",
-                points=19.2,
-                headshot_url="https://sleepercdn.com/content/nfl/players/11632.jpg",
-                title="#3 WR · GOLDEN STRIKERS",
-                color_accent="#ffaa00",
-                is_free_agent=False,
                 is_starter=False,
                 roster_slot="BENCH",
-                rank=3
+                rank=2
             ),
-            # --- TEs ---
             IdleSpotlight(
                 player_id="1466",
                 player_name="Travis Kelce",
@@ -464,23 +417,6 @@ class HUDStateEngine:
                 rank=1
             ),
             IdleSpotlight(
-                player_id="8130",
-                player_name="Trey McBride",
-                position="TE",
-                nfl_team="ARI",
-                fantasy_team_name="Emerald Vipers",
-                manager_name="Emerald Vipers",
-                points=14.2,
-                headshot_url="https://sleepercdn.com/content/nfl/players/8130.jpg",
-                title="#2 TE · EMERALD VIPERS",
-                color_accent="#00e676",
-                is_free_agent=False,
-                is_starter=False,
-                roster_slot="BENCH",
-                rank=2
-            ),
-            # --- Ks ---
-            IdleSpotlight(
                 player_id="11533",
                 player_name="Brandon Aubrey",
                 position="K",
@@ -497,23 +433,6 @@ class HUDStateEngine:
                 rank=1
             ),
             IdleSpotlight(
-                player_id="1264",
-                player_name="Justin Tucker",
-                position="K",
-                nfl_team="BAL",
-                fantasy_team_name="Neon Titans",
-                manager_name="Neon Titans",
-                points=9.0,
-                headshot_url="https://sleepercdn.com/content/nfl/players/1264.jpg",
-                title="#2 K · NEON Titans",
-                color_accent="#ff00aa",
-                is_free_agent=False,
-                is_starter=True,
-                roster_slot="STARTER",
-                rank=2
-            ),
-            # --- DEFs ---
-            IdleSpotlight(
                 player_id="MIN",
                 player_name="Minnesota Vikings",
                 position="DEF",
@@ -528,22 +447,6 @@ class HUDStateEngine:
                 is_starter=True,
                 roster_slot="STARTER",
                 rank=1
-            ),
-            IdleSpotlight(
-                player_id="BUF",
-                player_name="Buffalo Bills",
-                position="DEF",
-                nfl_team="BUF",
-                fantasy_team_name="Golden Strikers",
-                manager_name="Golden Strikers",
-                points=11.0,
-                headshot_url="https://sleepercdn.com/images/team_logos/nfl/buf.png",
-                title="#2 DEF · GOLDEN STRIKERS",
-                color_accent="#ffaa00",
-                is_free_agent=False,
-                is_starter=False,
-                roster_slot="BENCH",
-                rank=2
             )
         ]
 
@@ -556,6 +459,7 @@ class HUDStateEngine:
             last_updated=time.time(),
             matchups=matchup_models,
             highlight_queue=self.highlight_queue[-5:],
+            injury_queue=self.injury_queue[-5:],
             idle_spotlight=mock_spotlights[0],
             idle_spotlights=mock_spotlights,
             active_connections=self.ws_manager.count,
@@ -565,7 +469,7 @@ class HUDStateEngine:
         return self.current_state
 
     async def refresh_state(self, is_initial: bool = False) -> HUDState:
-        """Fetch latest live data from Sleeper and NFL APIs and compute deltas."""
+        """Fetch latest live data from Sleeper and NFL APIs, compute score deltas, and detect live injuries."""
         if self.mock_league_active and self.current_state:
             return self.current_state
 
@@ -576,18 +480,19 @@ class HUDStateEngine:
             season_type = nfl_state.get("season_type", "regular")
             season = nfl_state.get("season", "2026")
 
-            # 2. Concurrently fetch League, Users, Rosters, Matchups, Weekly Stats, and ESPN Scoreboard
-            league_info, users, rosters, raw_matchups, weekly_stats, _ = await asyncio.gather(
+            # 2. Concurrently fetch League, Users, Rosters, Matchups, Weekly Stats, ESPN Scoreboard, and ESPN Injuries
+            league_info, users, rosters, raw_matchups, weekly_stats, _, espn_injuries = await asyncio.gather(
                 self.sleeper.get_league_info(),
                 self.sleeper.get_league_users(),
                 self.sleeper.get_league_rosters(),
                 self.sleeper.get_matchups(current_week),
                 self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
-                self.nfl_tracker.fetch_scoreboard()
+                self.nfl_tracker.fetch_scoreboard(),
+                self.nfl_tracker.fetch_injuries()
             )
             scoring_settings = league_info.get("scoring_settings", {}) if isinstance(league_info, dict) else {}
 
-            # Map users: user_id -> display_name, avatar (support custom uploaded avatar in metadata & profile avatar)
+            # Map users: user_id -> display_name, avatar
             users_map: Dict[str, Dict[str, str]] = {}
             for u in (users or []):
                 uid = u.get("user_id")
@@ -619,7 +524,6 @@ class HUDStateEngine:
                     "avatar_url": "https://sleepercdn.com/images/v2/icons/player_default.webp"
                 })
 
-                # Prioritize custom avatar and team name set on roster level if present
                 roster_avatar = resolve_avatar_url(r_meta.get("avatar"))
                 avatar_url = roster_avatar or u_info["avatar_url"]
                 team_name = r_meta.get("team_name") or u_info["team_name"]
@@ -629,7 +533,7 @@ class HUDStateEngine:
                 team_lower = team_name.lower()
                 is_user_team = (mgr_lower == self.user_team_name) or (team_lower == self.user_team_name)
 
-                # Determine color accent (Preset override, or deterministic roster palette)
+                # Determine color accent
                 color = None
                 for key, val in MANAGER_COLORS.items():
                     if key.lower() == mgr_lower or key.lower() == team_lower:
@@ -653,7 +557,6 @@ class HUDStateEngine:
                 }
                 rosters_map[rid] = r_dict
 
-                # Map each rostered player back to their fantasy team
                 r_pids = [str(pid) for pid in (r.get("players") or [])]
                 roster_players_map[rid] = r_pids
                 for pid in r_pids:
@@ -672,8 +575,9 @@ class HUDStateEngine:
             matchup_models: List[MatchupData] = []
             duration_sec = self.get_speed_seconds()
             new_highlights: List[HighlightEvent] = []
+            new_injuries: List[InjuryAlertEvent] = []
 
-            # Track active players per position across all fantasy managers (Starters + Bench with FPTS != 0)
+            # Track active players per position across all fantasy managers
             active_by_position: Dict[str, List[Dict[str, Any]]] = {}
             pregame_starters_by_pos: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -721,7 +625,7 @@ class HUDStateEngine:
                             clock = game_info.clock
                             progress_pct = game_info.progress_pct
                             minutes_elapsed = getattr(game_info, "minutes_elapsed", 0.0)
-                            # Red zone alert: active offensive starters whose NFL team is in Red Zone (universal offensive check)
+                            # Red zone alert: active offensive starters whose NFL team is in Red Zone
                             def_positions = {"DEF", "D/ST", "DL", "LB", "DB", "DE", "DT", "CB", "S", "SS", "FS", "P"}
                             pos_upper = p_info.get("position", "").upper()
                             if pos_upper and pos_upper not in def_positions:
@@ -736,11 +640,22 @@ class HUDStateEngine:
                         if is_redzone:
                             redzone_players.append(p_info["name"])
 
+                        # Determine starter injury status from live ESPN injuries
+                        p_norm = p_info["name"].lower().strip()
+                        p_t_norm = (team_abbr or "").lower().strip()
+                        espn_rec = espn_injuries.get(f"{p_norm}_{p_t_norm}") or espn_injuries.get(p_norm)
+                        starter_inj_status = "Healthy"
+                        if espn_rec:
+                            st = espn_rec.get("status", "")
+                            if st.lower() in ["questionable", "out", "doubtful", "injured reserve", "ir"]:
+                                starter_inj_status = st
+
                         player_model = PlayerInfo(
                             player_id=str(pid),
                             name=p_info["name"],
                             position=p_info["position"],
                             team=team_abbr,
+                            injury_status=starter_inj_status,
                             points=pts,
                             game_status=status,
                             game_clock=clock,
@@ -800,11 +715,51 @@ class HUDStateEngine:
                                 "roster_slot": "STARTER"
                             })
 
+                        # Live In-Game Injury Detection for Owned Fantasy Players
+                        p_norm = p_info["name"].lower().strip()
+                        p_t_norm = (p_info.get("team") or "").lower().strip()
+                        espn_inj_rec = espn_injuries.get(f"{p_norm}_{p_t_norm}") or espn_injuries.get(p_norm)
+                        
+                        live_inj_status = "Healthy"
+                        live_inj_detail = ""
+                        if espn_inj_rec:
+                            raw_st = espn_inj_rec.get("status", "")
+                            if raw_st.lower() in ["questionable", "out", "doubtful", "injured reserve", "ir"]:
+                                live_inj_status = raw_st
+                                live_inj_detail = espn_inj_rec.get("detail", raw_st)
+
+                        prev_inj_status = self.prev_injury_statuses.get(str(pid), "Healthy")
+                        if live_inj_status != prev_inj_status:
+                            self.prev_injury_statuses[str(pid)] = live_inj_status
+                            # If transitioned into an injured state (e.g. Questionable or Out) during live tracking
+                            if self.is_bootstrapped and not is_initial and live_inj_status != "Healthy":
+                                if self.display_settings.injuries_enabled:
+                                    logger.info(f"🚑 INJURY DETECTED! {p_info['name']} ({roster_slot}) -> {live_inj_status} for {r_meta['manager_name']}")
+                                    inj_accent = "#ef4444" if live_inj_status.lower() in ["out", "ir", "injured reserve"] else "#f59e0b"
+                                    inj_event = InjuryAlertEvent(
+                                        id=str(uuid.uuid4())[:8],
+                                        player_id=str(pid),
+                                        player_name=p_info["name"],
+                                        position=pos,
+                                        nfl_team=p_info["team"],
+                                        fantasy_team_name=r_meta["team_name"],
+                                        manager_name=r_meta["manager_name"],
+                                        injury_status=live_inj_status,
+                                        injury_detail=live_inj_detail,
+                                        headshot_url=p_info["headshot_url"],
+                                        color_accent=inj_accent,
+                                        is_free_agent=False,
+                                        duration_seconds=duration_sec,
+                                        is_user_team=r_meta["is_user_team"]
+                                    )
+                                    new_injuries.append(inj_event)
+                                    self.injury_queue.append(inj_event)
+
                         # Delta check for Highlight Queue
                         if self.is_bootstrapped and not is_initial:
                             prev_pts = self.prev_player_points.get(str(pid), pts)
                             delta = pts - prev_pts
-                            if delta >= HIGHLIGHT_THRESHOLD:
+                            if delta >= HIGHLIGHT_THRESHOLD and self.display_settings.highlights_enabled:
                                 logger.info(f"🔥 HIGHLIGHT DETECTED! {p_info['name']} ({roster_slot}) +{delta:.1f} FPTS for {r_meta['manager_name']}")
                                 
                                 cur_pstats = p_stats or {}
@@ -998,6 +953,7 @@ class HUDStateEngine:
                 last_updated=time.time(),
                 matchups=matchup_models,
                 highlight_queue=self.highlight_queue[-5:],
+                injury_queue=self.injury_queue[-5:],
                 idle_spotlight=idle_spotlights[0] if idle_spotlights else None,
                 idle_spotlights=idle_spotlights,
                 active_connections=self.ws_manager.count,
@@ -1005,12 +961,21 @@ class HUDStateEngine:
                 display_settings=self.display_settings
             )
 
-            # Broadcast new highlights if any occurred
-            for hl in new_highlights:
-                await self.ws_manager.broadcast({
-                    "type": "PUSH_HIGHLIGHT",
-                    "highlight": hl.model_dump()
-                })
+            # Broadcast new highlights if enabled and any occurred
+            if self.display_settings.highlights_enabled:
+                for hl in new_highlights:
+                    await self.ws_manager.broadcast({
+                        "type": "PUSH_HIGHLIGHT",
+                        "highlight": hl.model_dump()
+                    })
+
+            # Broadcast new live injury alerts if enabled and any occurred
+            if self.display_settings.injuries_enabled:
+                for inj in new_injuries:
+                    await self.ws_manager.broadcast({
+                        "type": "PUSH_INJURY",
+                        "injury": inj.model_dump()
+                    })
 
             # Broadcast updated state
             await self.ws_manager.broadcast({
@@ -1025,7 +990,7 @@ class HUDStateEngine:
             raise e
 
     def set_mock_redzone(self, matchup_id: int, team_side: str, count: int, player_names: Optional[List[str]] = None) -> bool:
-        """Dynamically set the Red Zone count on a matchup team for testing (persists until changed or cleared)."""
+        """Dynamically set the Red Zone count on a matchup team for testing."""
         side_key = "a" if team_side.lower() in ["a", "team_a", "left"] else "b"
         p_names = player_names or [f"Player {i+1}" for i in range(count)]
         if count <= 0:
@@ -1044,7 +1009,7 @@ class HUDStateEngine:
         return False
 
     def set_mock_minutes(self, matchup_id: int, team_side: str, minutes: float) -> bool:
-        """Dynamically set minutes played on a matchup team for testing (persists until changed or cleared)."""
+        """Dynamically set minutes played on a matchup team for testing."""
         side_key = "a" if team_side.lower() in ["a", "team_a", "left"] else "b"
         self.mock_minutes_overrides[(matchup_id, side_key)] = float(minutes)
 
@@ -1080,7 +1045,6 @@ class HUDStateEngine:
         resolved_headshot = headshot_url
         resolved_pid = None
 
-        # Resolve player / defense identification
         if "viking" in p_lower or nfl_team.upper() == "MIN" or (position == "DEF" and "min" in p_lower):
             team_c = "min"
             resolved_headshot = resolved_headshot or f"https://sleepercdn.com/images/team_logos/nfl/{team_c}.png"
@@ -1167,7 +1131,6 @@ class HUDStateEngine:
                         resolved_pid = pid
                         break
 
-        # Determine if this play should be associated with the detected roster or an explicit selection
         is_fa = (fantasy_team_name.lower() in ["free agent", "unowned", "none", "fa"])
         
         if fantasy_team_name.lower() in ["auto", "detect", ""] or not fantasy_team_name:
@@ -1248,4 +1211,153 @@ class HUDStateEngine:
             is_touchdown=hl_is_td
         )
         self.highlight_queue.append(hl)
+        if self.current_state:
+            self.current_state.highlight_queue = self.highlight_queue[-5:]
         return hl
+
+    def trigger_test_injury(
+        self,
+        player_name: str = "CeeDee Lamb",
+        injury_status: str = "Out",
+        injury_detail: str = "Shoulder - Out for game",
+        fantasy_team_name: str = "auto",
+        position: str = "WR",
+        nfl_team: str = "DAL",
+        headshot_url: Optional[str] = None
+    ) -> InjuryAlertEvent:
+        """Trigger an instant test injury alert for a player with manager lookup and negative styling."""
+        p_lower = player_name.lower().strip()
+        resolved_headshot = headshot_url
+        resolved_pid = None
+
+        if "lamb" in p_lower:
+            resolved_headshot = resolved_headshot or "https://sleepercdn.com/content/nfl/players/6786.jpg"
+            resolved_pid = "6786"
+            position = "WR"
+            nfl_team = "DAL"
+        elif "allen" in p_lower:
+            resolved_headshot = resolved_headshot or "https://sleepercdn.com/content/nfl/players/4984.jpg"
+            resolved_pid = "4984"
+            position = "QB"
+            nfl_team = "BUF"
+        elif "barkley" in p_lower:
+            resolved_headshot = resolved_headshot or "https://sleepercdn.com/content/nfl/players/4866.jpg"
+            resolved_pid = "4866"
+            position = "RB"
+            nfl_team = "PHI"
+        elif "jefferson" in p_lower:
+            resolved_headshot = resolved_headshot or "https://sleepercdn.com/content/nfl/players/6794.jpg"
+            resolved_pid = "6794"
+            position = "WR"
+            nfl_team = "MIN"
+        else:
+            if hasattr(self.sleeper, "players_cache") and self.sleeper.players_cache:
+                for pid, pdata in self.sleeper.players_cache.items():
+                    if pdata.get("name", "").lower().strip() == p_lower:
+                        resolved_pid = pid
+                        position = position or pdata.get("position", "WR")
+                        nfl_team = nfl_team or pdata.get("team", "NFL")
+                        resolved_headshot = resolved_headshot or pdata.get("headshot_url")
+                        break
+            if not resolved_pid:
+                resolved_pid = "6786"
+                resolved_headshot = resolved_headshot or "https://sleepercdn.com/content/nfl/players/6786.jpg"
+
+        # Check player_to_roster mapping to find the actual fantasy manager owner
+        detected_roster = None
+        if hasattr(self, "player_to_roster") and self.player_to_roster:
+            if resolved_pid and str(resolved_pid) in self.player_to_roster:
+                detected_roster = self.player_to_roster[str(resolved_pid)]
+            else:
+                for pid, r_data in self.player_to_roster.items():
+                    p_info = self.sleeper.get_player_info(pid)
+                    if p_info.get("name", "").lower().strip() == p_lower:
+                        detected_roster = r_data
+                        resolved_pid = pid
+                        break
+
+        is_fa = (fantasy_team_name.lower() in ["free agent", "unowned", "none", "fa"])
+        if fantasy_team_name.lower() in ["auto", "detect", ""] or not fantasy_team_name:
+            if detected_roster:
+                fantasy_team_name = detected_roster["team_name"]
+                manager_name = detected_roster["manager_name"]
+                is_fa = False
+            else:
+                fantasy_team_name = "Free Agent"
+                manager_name = "Free Agent"
+                is_fa = True
+        elif is_fa:
+            manager_name = "Free Agent"
+            fantasy_team_name = "Free Agent"
+        else:
+            manager_name = fantasy_team_name
+            if hasattr(self, "rosters_map") and self.rosters_map:
+                for rid, r in self.rosters_map.items():
+                    if (r["team_name"].lower() == fantasy_team_name.lower() or 
+                        r["manager_name"].lower() == fantasy_team_name.lower()):
+                        fantasy_team_name = r["team_name"]
+                        manager_name = r["manager_name"]
+                        break
+
+        duration_sec = self.get_speed_seconds()
+        accent = "#ef4444" if injury_status.lower() in ["out", "ir", "injured reserve"] else "#f59e0b"
+
+        inj = InjuryAlertEvent(
+            id=str(uuid.uuid4())[:8],
+            player_id=resolved_pid or "6786",
+            player_name=player_name,
+            position=position,
+            nfl_team=nfl_team,
+            fantasy_team_name=fantasy_team_name,
+            manager_name=manager_name,
+            injury_status=injury_status,
+            injury_detail=injury_detail or f"{injury_status} during game",
+            headshot_url=resolved_headshot,
+            color_accent=accent,
+            is_free_agent=is_fa,
+            duration_seconds=duration_sec,
+            is_user_team=(fantasy_team_name.lower() == self.user_team_name)
+        )
+        self.injury_queue.append(inj)
+        if self.current_state:
+            self.current_state.injury_queue = self.injury_queue[-5:]
+        return inj
+
+    def simulate_random_delta(self) -> HighlightEvent:
+        """Pick a random active star and trigger a highlight play."""
+        candidates = [
+            ("Josh Allen", "QB", "BUF", 6.4, True, "touchdown"),
+            ("Justin Jefferson", "WR", "MIN", 8.2, True, "touchdown"),
+            ("Saquon Barkley", "RB", "PHI", 5.5, False, "big_play"),
+            ("CeeDee Lamb", "WR", "DAL", 7.1, True, "touchdown"),
+            ("Trey McBride", "TE", "ARI", 4.8, False, "big_play"),
+            ("Brandon Aubrey", "K", "DAL", 3.0, False, "field_goal"),
+            ("Minnesota Vikings", "DEF", "MIN", 6.0, True, "touchdown"),
+        ]
+        chosen = random.choice(candidates)
+        return self.trigger_test_highlight(
+            player_name=chosen[0],
+            position=chosen[1],
+            nfl_team=chosen[2],
+            delta_points=chosen[3],
+            is_touchdown=chosen[4],
+            highlight_type=chosen[5]
+        )
+
+    def simulate_random_injury(self) -> InjuryAlertEvent:
+        """Pick a random active star and trigger an injury alert."""
+        candidates = [
+            ("CeeDee Lamb", "Out", "Shoulder - Out for game", "WR", "DAL"),
+            ("Josh Allen", "Questionable", "Ankle - Questionable to return", "QB", "BUF"),
+            ("Saquon Barkley", "Out", "Knee - Ruled out for remainder of game", "RB", "PHI"),
+            ("Justin Jefferson", "Questionable", "Hamstring - Questionable to return", "WR", "MIN"),
+            ("Trey McBride", "Questionable", "Ribs - Questionable to return", "TE", "ARI"),
+        ]
+        chosen = random.choice(candidates)
+        return self.trigger_test_injury(
+            player_name=chosen[0],
+            injury_status=chosen[1],
+            injury_detail=chosen[2],
+            position=chosen[3],
+            nfl_team=chosen[4]
+        )

@@ -174,17 +174,25 @@ async def set_display_settings(
     speed: Optional[str] = Body(None, embed=True),
     interval: Optional[int] = Body(None, embed=True),
     ticker_speed: Optional[int] = Body(None, embed=True),
+    highlights_enabled: Optional[bool] = Body(None, embed=True),
     sound_enabled: Optional[bool] = Body(None, embed=True),
-    sound_theme: Optional[str] = Body(None, embed=True)
+    sound_theme: Optional[str] = Body(None, embed=True),
+    injuries_enabled: Optional[bool] = Body(None, embed=True),
+    injury_sound_enabled: Optional[bool] = Body(None, embed=True),
+    injury_sound_theme: Optional[str] = Body(None, embed=True)
 ):
-    """Set matchup display mode, animation speed, and sound settings."""
+    """Set matchup display mode, animation speed, highlight and injury alert parameters."""
     settings = engine.set_display_settings(
         mode=mode,
         speed=speed,
         interval=interval,
         ticker_speed=ticker_speed,
+        highlights_enabled=highlights_enabled,
         sound_enabled=sound_enabled,
-        sound_theme=sound_theme
+        sound_theme=sound_theme,
+        injuries_enabled=injuries_enabled,
+        injury_sound_enabled=injury_sound_enabled,
+        injury_sound_theme=injury_sound_theme
     )
     if engine.current_state:
         engine.current_state.display_settings = settings
@@ -193,6 +201,61 @@ async def set_display_settings(
             "settings": settings.model_dump()
         })
     return {"status": "ok", "settings": settings.model_dump()}
+
+
+@app.post("/api/settings/highlights")
+async def toggle_highlights(highlights_enabled: Optional[bool] = Body(None, embed=True)):
+    """Toggle or set highlight banner alerts enabled state."""
+    new_val = (not engine.display_settings.highlights_enabled) if highlights_enabled is None else highlights_enabled
+    settings = engine.set_display_settings(highlights_enabled=new_val)
+    if engine.current_state:
+        engine.current_state.display_settings = settings
+        await ws_manager.broadcast({
+            "type": "UPDATE_DISPLAY_SETTINGS",
+            "settings": settings.model_dump()
+        })
+    return {"status": "ok", "highlights_enabled": settings.highlights_enabled}
+
+
+@app.post("/api/settings/injuries")
+async def toggle_injuries(injuries_enabled: Optional[bool] = Body(None, embed=True)):
+    """Toggle or set live injury alerts enabled state."""
+    new_val = (not engine.display_settings.injuries_enabled) if injuries_enabled is None else injuries_enabled
+    settings = engine.set_display_settings(injuries_enabled=new_val)
+    if engine.current_state:
+        engine.current_state.display_settings = settings
+        await ws_manager.broadcast({
+            "type": "UPDATE_DISPLAY_SETTINGS",
+            "settings": settings.model_dump()
+        })
+    return {"status": "ok", "injuries_enabled": settings.injuries_enabled}
+
+
+@app.post("/api/settings/injury-sound")
+async def toggle_injury_sound(injury_sound_enabled: Optional[bool] = Body(None, embed=True)):
+    """Toggle or set injury audio alert sound enabled state."""
+    new_val = (not engine.display_settings.injury_sound_enabled) if injury_sound_enabled is None else injury_sound_enabled
+    settings = engine.set_display_settings(injury_sound_enabled=new_val)
+    if engine.current_state:
+        engine.current_state.display_settings = settings
+        await ws_manager.broadcast({
+            "type": "UPDATE_DISPLAY_SETTINGS",
+            "settings": settings.model_dump()
+        })
+    return {"status": "ok", "injury_sound_enabled": settings.injury_sound_enabled}
+
+
+@app.post("/api/settings/injury-sound-theme")
+async def set_injury_sound_theme(injury_sound_theme: str = Body("whistle_blow", embed=True)):
+    """Set injury sound effect theme (whistle_blow, buzzer_flat, flatline, record_scratch)."""
+    settings = engine.set_display_settings(injury_sound_theme=injury_sound_theme)
+    if engine.current_state:
+        engine.current_state.display_settings = settings
+        await ws_manager.broadcast({
+            "type": "UPDATE_DISPLAY_SETTINGS",
+            "settings": settings.model_dump()
+        })
+    return {"status": "ok", "injury_sound_theme": settings.injury_sound_theme, "settings": settings.model_dump()}
 
 
 @app.post("/api/settings/sound-theme")
@@ -330,6 +393,33 @@ async def trigger_test_highlight(
     return {"status": "ok", "highlight": highlight.model_dump()}
 
 
+@app.post("/api/test/injury")
+async def trigger_test_injury(
+    player_name: str = Body("CeeDee Lamb", embed=True),
+    injury_status: str = Body("Out", embed=True),
+    injury_detail: str = Body("Shoulder - Out for game", embed=True),
+    fantasy_team_name: str = Body("auto", embed=True),
+    position: str = Body("WR", embed=True),
+    nfl_team: str = Body("DAL", embed=True),
+    headshot_url: Optional[str] = Body(None, embed=True)
+):
+    """Trigger a manual test injury alert event with custom parameters."""
+    injury = engine.trigger_test_injury(
+        player_name=player_name,
+        injury_status=injury_status,
+        injury_detail=injury_detail,
+        fantasy_team_name=fantasy_team_name,
+        position=position,
+        nfl_team=nfl_team,
+        headshot_url=headshot_url
+    )
+    await ws_manager.broadcast({
+        "type": "PUSH_INJURY",
+        "injury": injury.model_dump()
+    })
+    return {"status": "ok", "injury": injury.model_dump()}
+
+
 @app.post("/api/test/simulate-delta")
 async def simulate_delta():
     """Simulate a random fantasy scoring play."""
@@ -340,6 +430,18 @@ async def simulate_delta():
             "highlight": highlight.model_dump()
         })
     return {"status": "ok", "highlight": highlight.model_dump() if highlight else None}
+
+
+@app.post("/api/test/simulate-injury")
+async def simulate_injury():
+    """Simulate a random fantasy player injury alert."""
+    injury = engine.simulate_random_injury()
+    if injury:
+        await ws_manager.broadcast({
+            "type": "PUSH_INJURY",
+            "injury": injury.model_dump()
+        })
+    return {"status": "ok", "injury": injury.model_dump() if injury else None}
 
 
 @app.post("/api/test/toggle-simulation")

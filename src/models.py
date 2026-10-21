@@ -71,6 +71,24 @@ class HighlightEvent(BaseModel):
     is_touchdown: bool = False
 
 
+class InjuryAlertEvent(BaseModel):
+    id: str
+    player_id: str
+    player_name: str
+    position: str
+    nfl_team: str
+    fantasy_team_name: str
+    manager_name: str
+    injury_status: str  # "Questionable", "Out", "Doubtful", "IR"
+    injury_detail: str = ""  # e.g. "Ankle - Questionable to Return"
+    headshot_url: str
+    color_accent: str = "#ef4444"
+    is_free_agent: bool = False
+    timestamp: float = Field(default_factory=time.time)
+    duration_seconds: int = 8
+    is_user_team: bool = False
+
+
 class IdleSpotlight(BaseModel):
     player_id: str
     player_name: str
@@ -93,8 +111,12 @@ class DisplaySettings(BaseModel):
     speed: Literal["normal", "fast", "slow"] = "normal"
     step_interval_seconds: int = 6
     ticker_speed: int = 35  # pixels per second
+    highlights_enabled: bool = True
     sound_enabled: bool = True
     sound_theme: Literal["fox_horn", "redzone", "td_siren", "brass_fanfare"] = "fox_horn"
+    injuries_enabled: bool = True
+    injury_sound_enabled: bool = True
+    injury_sound_theme: Literal["whistle_blow", "buzzer_flat", "flatline", "record_scratch"] = "whistle_blow"
 
 
 class HUDState(BaseModel):
@@ -106,6 +128,7 @@ class HUDState(BaseModel):
     last_updated: float = Field(default_factory=time.time)
     matchups: List[MatchupData] = Field(default_factory=list)
     highlight_queue: List[HighlightEvent] = Field(default_factory=list)
+    injury_queue: List[InjuryAlertEvent] = Field(default_factory=list)
     idle_spotlight: Optional[IdleSpotlight] = None
     idle_spotlights: List[IdleSpotlight] = Field(default_factory=list)
     active_connections: int = 0

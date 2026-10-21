@@ -42,6 +42,8 @@ open "NFL Fantasy HUD.app"
    - **Matchup Layout Selection** (Automatic, Continuous Ticker, or Step-by-Step Shift for leagues of any size)
    - **Animation Speed** (Normal, Fast, Slow)
    - **Game Week Selection** (*Live / Auto* or specific *Week 1* to *Week 18*)
+   - **Highlight & Injury Toggles**: Checkboxes for Big Play Highlights, Highlight Audio FX, Live Injury Alerts, and Negative Injury Sound FX
+   - **Audio Theme Selectors with ▶ Preview**: Audition Fox Horn / RedZone / TD Siren / Brass Fanfare, or Whistle / Buzzer / Flatline / Vinyl Scratch directly before launching
    - **Automatic dependency installation & self-healing backend launcher**
 2. **Transparent Ghost Top Bar Overlay**:
    - Uses Apple's native hardware-accelerated **WebKit (`WKWebView`)**
@@ -51,6 +53,33 @@ open "NFL Fantasy HUD.app"
 3. **Menu Bar Tray Icon (`🏈 HUD`)**:
    - Shortcuts: `Cmd+H` (Toggle HUD visibility), `Cmd+S` (Setup Dialog), `Cmd+Q` (Quit)
    - Target monitor switching submenu in real time.
+
+---
+
+
+---
+
+## 🚑 Live In-Game Injury Alerts & Negative Sound FX
+
+The HUD automatically monitors real-time injury feeds directly from the ESPN NFL API for every owned player across your fantasy league:
+
+1. **Owned Player In-Game Injury Detection**:
+   - Continuously cross-references active roster ownership with ESPN's live NFL injury reports.
+   - When any rostered player changes status to **Out (`O`)**, **Questionable (`Q`)**, **Doubtful (`D`)**, or **Injured Reserve (`IR`)**, an urgent **Injury Alert Banner** is pushed to the HUD spotlight queue.
+   - Displays player headshot, position, manager name with custom team glow, status badge, and injury diagnosis details.
+
+2. **Configurable Negative Sound FX**:
+   - **4 Negative Audio FX Themes**:
+     - `whistle_blow`: Referee penalty / injury whistle trill *(Default)*
+     - `buzzer_flat`: Low, heavy rejection / error buzzer
+     - `flatline`: Hospital telemetry pulse beeps ending in a heart monitor flatline
+     - `record_scratch`: DJ vinyl record scratch / abrupt halt
+   - Hardware-accelerated Web Audio API fallback ensures audio plays reliably with zero latency even when autoplay policies are restrictive.
+
+3. **Master Feature Toggles (App Menu, Status Tray & Setup Dialog)**:
+   - **Toggle Highlights (`ON` / `OFF`)**: Turn big-play highlight banners on or off dynamically without stopping the matchup ticker.
+   - **Toggle Injury Alerts (`ON` / `OFF`)**: Silence or enable injury notifications on demand.
+   - **Independent Audio Muting**: Enable/disable highlight fanfare or injury audio effects separately via Menu Bar, Status Bar, Dock Menu, or the Setup Dialog.
 
 ---
 
