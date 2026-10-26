@@ -183,20 +183,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     // ==========================================================================
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "⚙️ Setup & Settings", action: #selector(showSetupDialog), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: "🔄 Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
-        menu.addItem(NSMenuItem(title: "🏈 Toggle HUD Visibility", action: #selector(toggleHUD), keyEquivalent: "h"))
-        menu.addItem(NSMenuItem(title: isDebugMode ? "🪲 Debug Mode: ON (Clickable)" : "🪲 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d"))
-        menu.addItem(NSMenuItem(title: "📋 View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
-        menu.addItem(NSMenuItem(title: "🔄 Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem(title: "Setup & Settings", action: #selector(showSetupDialog), keyEquivalent: "s"))
+        menu.addItem(NSMenuItem(title: "Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
+        menu.addItem(NSMenuItem(title: "Toggle HUD Visibility", action: #selector(toggleHUD), keyEquivalent: "h"))
+        menu.addItem(NSMenuItem(title: isDebugMode ? "Debug Mode: ON (Clickable)" : "Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d"))
+        menu.addItem(NSMenuItem(title: "View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
+        menu.addItem(NSMenuItem(title: "Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
         menu.addItem(NSMenuItem.separator())
-        let hlTitle = isHighlightsEnabled ? "💥 Highlights: ON" : "💥 Highlights: OFF"
+        let hlTitle = isHighlightsEnabled ? "Highlights: ON" : "Highlights: OFF"
         menu.addItem(NSMenuItem(title: hlTitle, action: #selector(toggleHighlights), keyEquivalent: ""))
-        let injTitle = isInjuriesEnabled ? "🚑 Injury Alerts: ON" : "🚑 Injury Alerts: OFF"
+        let injTitle = isInjuriesEnabled ? "Injury Alerts: ON" : "Injury Alerts: OFF"
         menu.addItem(NSMenuItem(title: injTitle, action: #selector(toggleInjuries), keyEquivalent: ""))
-        let soundTitle = isSoundEnabled ? "🔊 Highlight Sound FX: ON" : "🔇 Highlight Sound FX: MUTED"
+        let soundTitle = isSoundEnabled ? "Highlight Sound FX: ON" : "Highlight Sound FX: MUTED"
         menu.addItem(NSMenuItem(title: soundTitle, action: #selector(toggleSound), keyEquivalent: ""))
-        let injSoundTitle = isInjurySoundEnabled ? "📯 Injury Sound FX: ON" : "🔇 Injury Sound FX: MUTED"
+        let injSoundTitle = isInjurySoundEnabled ? "Injury Sound FX: ON" : "Injury Sound FX: MUTED"
         menu.addItem(NSMenuItem(title: injSoundTitle, action: #selector(toggleInjurySound), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit NFL Fantasy HUD", action: #selector(quitApp), keyEquivalent: "q"))
@@ -259,7 +259,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
-            button.title = "🏈 HUD"
+            button.title = "HUD"
         }
 
         buildStatusBarMenu()
@@ -267,23 +267,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     func buildStatusBarMenu() {
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "⚙️ Setup & Settings (Cmd+S)", action: #selector(showSetupDialog), keyEquivalent: "s"))
-        menu.addItem(NSMenuItem(title: "🔄 Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
-        menu.addItem(NSMenuItem(title: "🏈 Toggle HUD Visibility (Cmd+H)", action: #selector(toggleHUD), keyEquivalent: "h"))
+        menu.addItem(NSMenuItem(title: "Setup & Settings (Cmd+S)", action: #selector(showSetupDialog), keyEquivalent: "s"))
+        menu.addItem(NSMenuItem(title: "Check for Updates...", action: #selector(manualCheckForUpdates), keyEquivalent: "u"))
+        menu.addItem(NSMenuItem(title: "Toggle HUD Visibility (Cmd+H)", action: #selector(toggleHUD), keyEquivalent: "h"))
         
-        let debugItem = NSMenuItem(title: isDebugMode ? "🪲 Debug Mode: ON (Clickable)" : "🪲 Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d")
+        let debugItem = NSMenuItem(title: isDebugMode ? "Debug Mode: ON (Clickable)" : "Debug Mode: OFF (Click-Through)", action: #selector(toggleDebugMode), keyEquivalent: "d")
         menu.addItem(debugItem)
         menu.addItem(NSMenuItem.separator())
-        let hlTitle = isHighlightsEnabled ? "💥 Highlights: ON" : "💥 Highlights: OFF"
+        let hlTitle = isHighlightsEnabled ? "Highlights: ON" : "Highlights: OFF"
         menu.addItem(NSMenuItem(title: hlTitle, action: #selector(toggleHighlights), keyEquivalent: ""))
-        let injTitle = isInjuriesEnabled ? "🚑 Injury Alerts: ON" : "🚑 Injury Alerts: OFF"
+        let injTitle = isInjuriesEnabled ? "Injury Alerts: ON" : "Injury Alerts: OFF"
         menu.addItem(NSMenuItem(title: injTitle, action: #selector(toggleInjuries), keyEquivalent: ""))
-        let soundTitle = isSoundEnabled ? "🔊 Highlight Sound FX: ON (Cmd+M)" : "🔇 Highlight Sound FX: MUTED (Cmd+M)"
+        let soundTitle = isSoundEnabled ? "Highlight Sound FX: ON (Cmd+M)" : "Highlight Sound FX: MUTED (Cmd+M)"
         menu.addItem(NSMenuItem(title: soundTitle, action: #selector(toggleSound), keyEquivalent: "m"))
-        let injSoundTitle = isInjurySoundEnabled ? "📯 Injury Sound FX: ON" : "🔇 Injury Sound FX: MUTED"
+        let injSoundTitle = isInjurySoundEnabled ? "Injury Sound FX: ON" : "Injury Sound FX: MUTED"
         menu.addItem(NSMenuItem(title: injSoundTitle, action: #selector(toggleInjurySound), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "📋 View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
-        menu.addItem(NSMenuItem(title: "🔄 Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem(title: "View Logs (/tmp/hud_backend.log)", action: #selector(viewLogs), keyEquivalent: "l"))
+        menu.addItem(NSMenuItem(title: "Restart Backend Engine", action: #selector(restartBackend), keyEquivalent: "r"))
 
         menu.addItem(NSMenuItem.separator())
 
@@ -292,16 +292,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         for (idx, screen) in NSScreen.screens.enumerated() {
             let name = screen.localizedName
             let res = "\(Int(screen.frame.width))×\(Int(screen.frame.height))"
-            let item = NSMenuItem(title: "\(idx == 0 ? "💻" : "🖥️") \(name) (\(res))", action: #selector(onScreenSelectedFromMenu(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: "\(name) (\(res))", action: #selector(onScreenSelectedFromMenu(_:)), keyEquivalent: "")
             item.tag = idx
             item.state = (idx == selectedScreenIndex) ? .on : .off
             screenMenu.addItem(item)
         }
-        let screenMenuItem = NSMenuItem(title: "🖥️ Target Display", action: nil, keyEquivalent: "")
+        let screenMenuItem = NSMenuItem(title: "Target Display", action: nil, keyEquivalent: "")
         screenMenuItem.submenu = screenMenu
         menu.addItem(screenMenuItem)
 
-        menu.addItem(NSMenuItem(title: "🌐 Control Center (Browser)", action: #selector(openControlCenter), keyEquivalent: "c"))
+        menu.addItem(NSMenuItem(title: "Control Center (Browser)", action: #selector(openControlCenter), keyEquivalent: "c"))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit NFL Fantasy HUD (Cmd+Q)", action: #selector(quitApp), keyEquivalent: "q"))
 
@@ -448,7 +448,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             DispatchQueue.main.async {
                 if hasUpdate {
                     let alert = NSAlert()
-                    alert.messageText = "🎉 New Version Available: \(tagName)"
+                    alert.messageText = "New Version Available: \(tagName)"
                     let noteSnippet = releaseNotes.isEmpty ? "" : "\n\nRelease Highlights:\n\(releaseNotes.prefix(300))"
                     alert.informativeText = "A new version of NFL Fantasy HUD is available!\n\nInstalled version: v\(localVersion)\nLatest version: \(tagName)\(noteSnippet)"
                     alert.alertStyle = .informational
@@ -470,7 +470,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                     }
                 } else if !silent {
                     let alert = NSAlert()
-                    alert.messageText = "You're Up to Date! 🏈"
+                    alert.messageText = "You're Up to Date"
                     alert.informativeText = "NFL Fantasy HUD v\(localVersion) is currently the newest version."
                     alert.alertStyle = .informational
                     alert.addButton(withTitle: "OK")
@@ -551,8 +551,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(platLabel)
 
         platformPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 112, width: width - 190, height: 26))
-        platformPopup.addItem(withTitle: "🟢 Sleeper (Default)")
-        platformPopup.addItem(withTitle: "🔴 Official ESPN Fantasy")
+        platformPopup.addItem(withTitle: "Sleeper (Default)")
+        platformPopup.addItem(withTitle: "Official ESPN Fantasy")
         platformPopup.target = self
         platformPopup.action = #selector(onPlatformChanged)
         contentView.addSubview(platformPopup)
@@ -584,9 +584,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(modeLabel)
 
         modePopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 220, width: width - 190, height: 26))
-        modePopup.addItem(withTitle: "⚡ Automatic (≤ 3 static, > 3 step-shift)")
-        modePopup.addItem(withTitle: "📈 Continuous Ticker (Rolling marquee)")
-        modePopup.addItem(withTitle: "➡️ Step Shift (1 exits left, 1 enters right)")
+        modePopup.addItem(withTitle: "Automatic (≤ 3 static, > 3 step-shift)")
+        modePopup.addItem(withTitle: "Continuous Ticker (Rolling marquee)")
+        modePopup.addItem(withTitle: "Step Shift (1 exits left, 1 enters right)")
         modePopup.selectItem(at: 0)
         contentView.addSubview(modePopup)
 
@@ -597,9 +597,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(speedLabel)
 
         speedPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 256, width: width - 190, height: 26))
-        speedPopup.addItem(withTitle: "⏱️ Normal (10s cycle)")
-        speedPopup.addItem(withTitle: "⚡ Fast (5s cycle)")
-        speedPopup.addItem(withTitle: "🐢 Slow (20s cycle)")
+        speedPopup.addItem(withTitle: "Normal (10s cycle)")
+        speedPopup.addItem(withTitle: "Fast (5s cycle)")
+        speedPopup.addItem(withTitle: "Slow (20s cycle)")
         speedPopup.selectItem(at: 0)
         contentView.addSubview(speedPopup)
 
@@ -610,7 +610,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(weekLabel)
 
         weekPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 292, width: width - 190, height: 26))
-        weekPopup.addItem(withTitle: "🟢 Live / Auto (Current NFL Week)")
+        weekPopup.addItem(withTitle: "Live / Auto (Current NFL Week)")
         for w in 1...18 {
             weekPopup.addItem(withTitle: "Week \(w)")
         }
@@ -640,16 +640,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(soundThemeLabel)
 
         let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 388, width: width - 292, height: 26))
-        soundTheme.addItem(withTitle: "🏈 NFL on FOX / Stadium Horn")
-        soundTheme.addItem(withTitle: "⚡ NFL RedZone Chime Alert")
-        soundTheme.addItem(withTitle: "🚨 Touchdown Siren & Horn")
-        soundTheme.addItem(withTitle: "🎺 Classic Arena Fanfare")
+        soundTheme.addItem(withTitle: "NFL on FOX / Stadium Horn")
+        soundTheme.addItem(withTitle: "NFL RedZone Chime Alert")
+        soundTheme.addItem(withTitle: "Touchdown Siren & Horn")
+        soundTheme.addItem(withTitle: "Classic Arena Fanfare")
         soundTheme.selectItem(at: 0)
         contentView.addSubview(soundTheme)
         self.soundThemePopup = soundTheme
 
         let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 389, width: 94, height: 28))
-        testSoundBtn.title = "▶ Preview"
+        testSoundBtn.title = "Preview"
         testSoundBtn.bezelStyle = .rounded
         testSoundBtn.target = self
         testSoundBtn.action = #selector(onPreviewSoundClicked)
@@ -678,16 +678,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(injSoundThemeLabel)
 
         let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 488, width: width - 292, height: 26))
-        injSoundTheme.addItem(withTitle: "📯 Referee Whistle Trill (Default)")
-        injSoundTheme.addItem(withTitle: "🚨 Flat Rejection Buzzer")
-        injSoundTheme.addItem(withTitle: "📉 Heart Monitor Flatline")
-        injSoundTheme.addItem(withTitle: "💿 Vinyl Record Scratch")
+        injSoundTheme.addItem(withTitle: "Referee Whistle Trill (Default)")
+        injSoundTheme.addItem(withTitle: "Flat Rejection Buzzer")
+        injSoundTheme.addItem(withTitle: "Heart Monitor Flatline")
+        injSoundTheme.addItem(withTitle: "Vinyl Record Scratch")
         injSoundTheme.selectItem(at: 0)
         contentView.addSubview(injSoundTheme)
         self.injurySoundThemePopup = injSoundTheme
 
         let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 489, width: 94, height: 28))
-        testInjSoundBtn.title = "▶ Preview"
+        testInjSoundBtn.title = "Preview"
         testInjSoundBtn.bezelStyle = .rounded
         testInjSoundBtn.target = self
         testInjSoundBtn.action = #selector(onPreviewInjurySoundClicked)
@@ -702,7 +702,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // Action Buttons
         let logsBtn = NSButton(frame: NSRect(x: 24, y: 16, width: 105, height: 32))
-        logsBtn.title = "📋 View Logs"
+        logsBtn.title = "View Logs"
         logsBtn.bezelStyle = .rounded
         logsBtn.target = self
         logsBtn.action = #selector(viewLogs)
@@ -833,7 +833,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             let name = screen.localizedName
             let res = "\(Int(screen.frame.width))×\(Int(screen.frame.height))"
             let isMain = (screen == NSScreen.main) ? " (Main)" : ""
-            popup.addItem(withTitle: "\(i == 0 ? "💻" : "🖥️") \(name)\(isMain) [\(res)]")
+            popup.addItem(withTitle: "\(name)\(isMain) [\(res)]")
             if let targetName = selectedScreenName, name == targetName {
                 matchIdx = i
             }
@@ -850,10 +850,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         checkBackendHealth { isHealthy in
             DispatchQueue.main.async {
                 if isHealthy {
-                    self.statusLabel.stringValue = "🟢 Live Game Engine Connected (http://localhost:8080)"
+                    self.statusLabel.stringValue = "Live Game Engine Connected (http://localhost:8080)"
                     self.statusLabel.textColor = .systemGreen
                 } else {
-                    self.statusLabel.stringValue = "🟡 Backend offline — click 'Launch HUD' to start."
+                    self.statusLabel.stringValue = "Backend offline — click 'Launch HUD' to start."
                     self.statusLabel.textColor = .systemOrange
                 }
             }
@@ -921,7 +921,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         selectedInjurySoundTheme = injThemeKeys[min(max(injThemeIdx, 0), injThemeKeys.count - 1)]
 
         launchBtn.isEnabled = false
-        statusLabel.stringValue = "⏳ Verifying backend engine connection..."
+        statusLabel.stringValue = "Verifying backend engine connection..."
         statusLabel.textColor = .systemBlue
         writeLogLine("Launch HUD clicked. Target league: \(leagueId), mode: \(modeParam), speed: \(speedParam), week: \(String(describing: weekParam))")
 
@@ -939,7 +939,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                 }
             } else {
                 DispatchQueue.main.async {
-                    self.statusLabel.stringValue = "⏳ Spawning backend engine process..."
+                    self.statusLabel.stringValue = "Spawning backend engine process..."
                 }
                 self.launchBackendProcess(leagueId: leagueId) { success, errorSnippet in
                     DispatchQueue.main.async {
@@ -953,7 +953,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                                 }
                             }
                         } else {
-                            self.statusLabel.stringValue = "❌ Failed to start backend engine."
+                            self.statusLabel.stringValue = "Failed to start backend engine."
                             self.statusLabel.textColor = .systemRed
                             writeLogLine("Backend failed to start. Error: \(errorSnippet)")
 
