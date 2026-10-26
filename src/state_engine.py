@@ -10,11 +10,13 @@ from src.models import (
     HighlightEvent, IdleSpotlight, DisplaySettings, InjuryAlertEvent
 )
 from src.sleeper_client import SleeperClient
+from src.espn_client import ESPNFantasyClient
 from src.nfl_game_tracker import NFLGameTracker
 from src.ws_manager import ConnectionManager
 from src.config import (
     LEAGUE_ID, TEAM_NAME, HIGHLIGHT_THRESHOLD,
-    HIGHLIGHT_DISPLAY_SECONDS, MANAGER_COLORS, COLOR_FREE_AGENT, DEFAULT_PALETTE
+    HIGHLIGHT_DISPLAY_SECONDS, MANAGER_COLORS, COLOR_FREE_AGENT, DEFAULT_PALETTE,
+    FANTASY_PLATFORM, ESPN_LEAGUE_ID, ESPN_SEASON, ESPN_S2, ESPN_SWID, CURRENT_SEASON
 )
 
 logger = logging.getLogger("src.state_engine")
@@ -64,7 +66,14 @@ class HUDStateEngine:
 
     def __init__(self, ws_manager: ConnectionManager):
         self.ws_manager = ws_manager
+        self.platform: str = FANTASY_PLATFORM
         self.sleeper = SleeperClient()
+        self.espn = ESPNFantasyClient(
+            league_id=ESPN_LEAGUE_ID,
+            season=ESPN_SEASON,
+            espn_s2=ESPN_S2,
+            swid=ESPN_SWID
+        )
         self.nfl_tracker = NFLGameTracker()
 
         self.current_state: Optional[HUDState] = None
@@ -105,6 +114,8 @@ class HUDStateEngine:
         """Bootstrap player database and initial matchup state before start."""
         logger.info("Bootstrap: verifying NFL players cache...")
         await self.sleeper.ensure_players_cache()
+        if hasattr(self, "espn"):
+            self.espn._load_player_index()
         logger.info("Bootstrap: loading newest manager avatars, team rosters, and live league state...")
         await self.refresh_state(is_initial=True)
         self.is_bootstrapped = True
@@ -118,10 +129,31 @@ class HUDStateEngine:
         self.mock_league_active = False
         logger.info(f"Week override set to: {week}")
 
-    def set_league_id(self, league_id: str):
-        """Dynamically switch active Sleeper League ID."""
+    def set_league_id(
+        self,
+        league_id: str,
+        platform: Optional[str] = None,
+        season: Optional[str] = None,
+        espn_s2: Optional[str] = None,
+        espn_swid: Optional[str] = None
+    ):
+        """Dynamically switch active League ID and Platform (Sleeper or ESPN)."""
+        if platform:
+            self.platform = platform.lower().strip()
         cleaned_id = str(league_id).strip()
-        self.sleeper.league_id = cleaned_id
+        if self.platform == "espn":
+            self.espn.update_credentials(
+                league_id=cleaned_id,
+                season=season,
+                espn_s2=espn_s2,
+                swid=espn_swid
+            )
+            logger.info(f"Switched to ESPN League ID: {cleaned_id} (season: {self.espn.season})")
+        else:
+            self.sleeper.league_id = cleaned_id
+            logger.info(f"Switched to Sleeper League ID: {cleaned_id}")
+
+        self.mock_league_active = False
         self.league_meta_cache = {}
         self.prev_player_points = {}
         self.prev_player_stats = {}
@@ -130,7 +162,6 @@ class HUDStateEngine:
         self.injury_queue.clear()
         self.starters_set.clear()
         self.clear_mock_overrides()
-        logger.info(f"Sleeper League ID switched to: {cleaned_id}")
 
     def get_speed_seconds(self) -> int:
         """Return interval in seconds for the current speed preset."""
@@ -452,10 +483,12 @@ class HUDStateEngine:
             )
         ]
 
+        active_id = str(self.espn.league_id) if self.platform == "espn" else str(self.sleeper.league_id)
         self.current_state = HUDState(
-            league_id=str(self.sleeper.league_id),
+            platform=self.platform,
+            league_id=active_id,
             league_name=f"Mock {teams_count}-Team League",
-            season="2026",
+            season=CURRENT_SEASON,
             week=3,
             is_live=True,
             last_updated=time.time(),
@@ -480,18 +513,26 @@ class HUDStateEngine:
             nfl_state = await self.sleeper.get_nfl_state()
             current_week = self.week_override if self.week_override is not None else nfl_state.get("week", 1)
             season_type = nfl_state.get("season_type", "regular")
-            season = nfl_state.get("season", "2026")
+            season = (self.espn.season if (self.platform == "espn" and self.espn.season) else None) or nfl_state.get("season") or CURRENT_SEASON
 
             # 2. Concurrently fetch League, Users, Rosters, Matchups, Weekly Stats, ESPN Scoreboard, and ESPN Injuries
-            league_info, users, rosters, raw_matchups, weekly_stats, _, espn_injuries = await asyncio.gather(
-                self.sleeper.get_league_info(),
-                self.sleeper.get_league_users(),
-                self.sleeper.get_league_rosters(),
-                self.sleeper.get_matchups(current_week),
-                self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
-                self.nfl_tracker.fetch_scoreboard(),
-                self.nfl_tracker.fetch_injuries()
-            )
+            if self.platform == "espn":
+                (league_info, users, rosters, raw_matchups), weekly_stats, _, espn_injuries = await asyncio.gather(
+                    self.espn.get_league_bundle(current_week, season=season),
+                    self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
+                    self.nfl_tracker.fetch_scoreboard(),
+                    self.nfl_tracker.fetch_injuries()
+                )
+            else:
+                league_info, users, rosters, raw_matchups, weekly_stats, _, espn_injuries = await asyncio.gather(
+                    self.sleeper.get_league_info(),
+                    self.sleeper.get_league_users(),
+                    self.sleeper.get_league_rosters(),
+                    self.sleeper.get_matchups(current_week),
+                    self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
+                    self.nfl_tracker.fetch_scoreboard(),
+                    self.nfl_tracker.fetch_injuries()
+                )
             scoring_settings = league_info.get("scoring_settings", {}) if isinstance(league_info, dict) else {}
 
             # Map users: user_id -> display_name, avatar
@@ -960,11 +1001,13 @@ class HUDStateEngine:
                             rank=rank
                         ))
 
+            active_id = str(self.espn.league_id) if self.platform == "espn" else str(self.sleeper.league_id)
             # Update Current State
             self.current_state = HUDState(
-                league_id=str(self.sleeper.league_id),
+                platform=self.platform,
+                league_id=active_id,
                 league_name=league_info.get("name", "NFL Fantasy League"),
-                season=league_info.get("season", "2026"),
+                season=league_info.get("season", season),
                 week=current_week,
                 is_live=(season_type == "regular"),
                 last_updated=time.time(),

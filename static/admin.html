@@ -684,15 +684,20 @@
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 20px;">🏈</span>
         <div>
-          <div style="font-size: 13px; font-weight: 700; color: #fff;">
-            Active Sleeper League: <span id="current-league-name" style="color: var(--cyan);">Loading...</span>
+          <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+            Active League: <span id="current-league-name" style="color: var(--cyan);">Loading...</span>
+            <span id="current-platform-badge" style="font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(0,240,255,0.15); color: var(--cyan); text-transform: uppercase; font-weight: 700; border: 1px solid rgba(0,240,255,0.3);">SLEEPER</span>
           </div>
           <div style="font-size: 11px; color: var(--text-muted);">
             ID: <span id="current-league-id" style="font-family: var(--font-mono); color: #fff;">-</span> · 100% Liga-agnostisch (Beliebige Team-Anzahl 8–16, beliebige Roster-Größen & Positionen)
           </div>
         </div>
       </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <select id="switch-platform-select" onchange="onPlatformSelectChanged()" style="font-size: 12px; padding: 7px 10px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; cursor: pointer;">
+          <option value="sleeper">🟢 Sleeper</option>
+          <option value="espn">🔴 Official ESPN</option>
+        </select>
         <input type="text" id="switch-league-input" placeholder="Sleeper League ID eingeben" style="width: 220px; font-size: 12px; padding: 7px 10px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-family: var(--font-mono);" />
         <button class="btn-cyan" style="font-size: 12px; padding: 7px 14px;" onclick="switchLeague()">Liga Wechseln</button>
       </div>
@@ -1684,6 +1689,26 @@
           }
         }
         
+        if (state.platform) {
+          const platBadge = document.getElementById('current-platform-badge');
+          if (platBadge) {
+            platBadge.textContent = state.platform.toUpperCase();
+            if (state.platform === 'espn') {
+              platBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+              platBadge.style.color = '#ef4444';
+              platBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            } else {
+              platBadge.style.background = 'rgba(0, 240, 255, 0.15)';
+              platBadge.style.color = 'var(--cyan)';
+              platBadge.style.borderColor = 'rgba(0, 240, 255, 0.3)';
+            }
+          }
+          const platSelect = document.getElementById('switch-platform-select');
+          if (platSelect && document.activeElement !== platSelect) {
+            platSelect.value = state.platform;
+          }
+        }
+
         if (state.league_name) {
           const lName = document.getElementById('current-league-name');
           if (lName) lName.textContent = state.league_name;
@@ -1711,22 +1736,32 @@
       }
     }
 
+    function onPlatformSelectChanged() {
+      const plat = document.getElementById('switch-platform-select').value;
+      const input = document.getElementById('switch-league-input');
+      if (input) {
+        input.placeholder = (plat === 'espn') ? 'ESPN League ID eingeben (z. B. 1162468)' : 'Sleeper League ID eingeben';
+      }
+    }
+
     async function switchLeague() {
+      const plat = document.getElementById('switch-platform-select').value;
       const input = document.getElementById('switch-league-input');
       const leagueId = input ? input.value.trim() : '';
       if (!leagueId) {
-        showToast('Bitte eine gültige Sleeper League ID eingeben');
+        showToast(plat === 'espn' ? 'Bitte eine gültige ESPN League ID eingeben' : 'Bitte eine gültige Sleeper League ID eingeben');
         return;
       }
       try {
         const res = await fetch('/api/settings/league', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ league_id: leagueId })
+          body: JSON.stringify({ league_id: leagueId, platform: plat })
         });
         if (res.ok) {
           const data = await res.json();
-          showToast(`Erfolgreich gewechselt zu: ${data.league_name || data.league_id}`);
+          const platLabel = (data.platform || plat).toUpperCase();
+          showToast(`Erfolgreich gewechselt zu: ${data.league_name || data.league_id} (${platLabel})`);
           input.value = '';
           setTimeout(() => loadMVPs(), 600);
         } else {

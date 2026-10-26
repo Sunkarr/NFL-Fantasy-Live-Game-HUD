@@ -147,13 +147,27 @@ async def get_state():
 
 @app.post("/api/settings/league")
 @app.post("/api/league")
-async def set_league(league_id: str = Body(..., embed=True)):
-    """Dynamically switch active Sleeper League ID."""
-    engine.set_league_id(league_id)
+async def set_league(
+    league_id: str = Body(..., embed=True),
+    platform: Optional[str] = Body(None, embed=True),
+    season: Optional[str] = Body(None, embed=True),
+    espn_s2: Optional[str] = Body(None, embed=True),
+    espn_swid: Optional[str] = Body(None, embed=True)
+):
+    """Dynamically switch active League ID and Platform (Sleeper or ESPN)."""
+    engine.set_league_id(
+        league_id=league_id,
+        platform=platform,
+        season=season,
+        espn_s2=espn_s2,
+        espn_swid=espn_swid
+    )
     await engine.refresh_state(is_initial=True)
+    active_id = engine.espn.league_id if engine.platform == "espn" else engine.sleeper.league_id
     return {
         "status": "ok",
-        "league_id": engine.sleeper.league_id,
+        "platform": engine.platform,
+        "league_id": active_id,
         "league_name": engine.current_state.league_name if engine.current_state else ""
     }
 

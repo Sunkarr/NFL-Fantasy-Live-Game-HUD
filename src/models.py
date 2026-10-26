@@ -125,6 +125,7 @@ class DisplaySettings(BaseModel):
 
 
 class HUDState(BaseModel):
+    platform: str = "sleeper"  # "sleeper" or "espn"
     league_id: str
     league_name: str
     season: str

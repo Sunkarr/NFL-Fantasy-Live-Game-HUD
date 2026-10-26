@@ -41,6 +41,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     let defaultLeagueID = "1390344846723543040"
     let githubRepo = "Sunkarr/NFL-Fantasy-Live-Game-HUD"
 
+    var platformPopup: NSPopUpButton!
+    var leagueLabel: NSTextField!
     var leagueIdField: NSTextField!
     var screenPopup: NSPopUpButton!
     var modePopup: NSPopUpButton!
@@ -508,7 +510,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     func createSetupWindow() {
         let width: CGFloat = 520
-        let height: CGFloat = 635
+        let height: CGFloat = 675
         let rect = NSRect(x: 0, y: 0, width: width, height: height)
 
         setupWindow = NSWindow(
@@ -517,7 +519,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             backing: .buffered,
             defer: false
         )
-        setupWindow?.title = "NFL Fantasy Live HUD — Setup & Debug"
+        setupWindow?.title = "NFL Fantasy Live HUD — Welcome & Setup"
         setupWindow?.delegate = self
         setupWindow?.isReleasedWhenClosed = false
 
@@ -536,39 +538,52 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         titleLabel.frame = NSRect(x: 84, y: height - 44, width: width - 100, height: 24)
         contentView.addSubview(titleLabel)
 
-        let subtitleLabel = NSTextField(labelWithString: "Broadcast-Grade Live Stream Overlay for Any League Size.")
+        let subtitleLabel = NSTextField(labelWithString: "Broadcast-Grade Live Stream Overlay for Sleeper & Official ESPN.")
         subtitleLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
         subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.frame = NSRect(x: 84, y: height - 64, width: width - 100, height: 18)
         contentView.addSubview(subtitleLabel)
 
+        // 0. Platform Selection Dropdown (Sleeper vs Official ESPN)
+        let platLabel = NSTextField(labelWithString: "Fantasy Platform:")
+        platLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        platLabel.frame = NSRect(x: 24, y: height - 108, width: 140, height: 20)
+        contentView.addSubview(platLabel)
+
+        platformPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 112, width: width - 190, height: 26))
+        platformPopup.addItem(withTitle: "🟢 Sleeper (Default)")
+        platformPopup.addItem(withTitle: "🔴 Official ESPN Fantasy")
+        platformPopup.target = self
+        platformPopup.action = #selector(onPlatformChanged)
+        contentView.addSubview(platformPopup)
+
         // 1. League ID Input
-        let leagueLabel = NSTextField(labelWithString: "Sleeper League ID:")
+        leagueLabel = NSTextField(labelWithString: "Sleeper League ID:")
         leagueLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        leagueLabel.frame = NSRect(x: 24, y: height - 108, width: 140, height: 20)
+        leagueLabel.frame = NSRect(x: 24, y: height - 144, width: 140, height: 20)
         contentView.addSubview(leagueLabel)
 
-        leagueIdField = NSTextField(frame: NSRect(x: 168, y: height - 110, width: width - 192, height: 24))
+        leagueIdField = NSTextField(frame: NSRect(x: 168, y: height - 146, width: width - 192, height: 24))
         leagueIdField.stringValue = defaultLeagueID
         contentView.addSubview(leagueIdField)
 
         // 2. Monitor / Screen Selection Dropdown
         let screenLabel = NSTextField(labelWithString: "Target Display:")
         screenLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        screenLabel.frame = NSRect(x: 24, y: height - 144, width: 140, height: 20)
+        screenLabel.frame = NSRect(x: 24, y: height - 180, width: 140, height: 20)
         contentView.addSubview(screenLabel)
 
-        screenPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 148, width: width - 190, height: 26))
+        screenPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 184, width: width - 190, height: 26))
         contentView.addSubview(screenPopup)
         refreshScreenList()
 
         // 3. Matchup Display Mode Dropdown (Any League Size)
         let modeLabel = NSTextField(labelWithString: "Matchup Layout:")
         modeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        modeLabel.frame = NSRect(x: 24, y: height - 180, width: 140, height: 20)
+        modeLabel.frame = NSRect(x: 24, y: height - 216, width: 140, height: 20)
         contentView.addSubview(modeLabel)
 
-        modePopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 184, width: width - 190, height: 26))
+        modePopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 220, width: width - 190, height: 26))
         modePopup.addItem(withTitle: "⚡ Automatic (≤ 3 static, > 3 step-shift)")
         modePopup.addItem(withTitle: "📈 Continuous Ticker (Rolling marquee)")
         modePopup.addItem(withTitle: "➡️ Step Shift (1 exits left, 1 enters right)")
@@ -578,10 +593,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 4. Animation / Transition Speed
         let speedLabel = NSTextField(labelWithString: "Animation Speed:")
         speedLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        speedLabel.frame = NSRect(x: 24, y: height - 216, width: 140, height: 20)
+        speedLabel.frame = NSRect(x: 24, y: height - 252, width: 140, height: 20)
         contentView.addSubview(speedLabel)
 
-        speedPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 220, width: width - 190, height: 26))
+        speedPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 256, width: width - 190, height: 26))
         speedPopup.addItem(withTitle: "⏱️ Normal (10s cycle)")
         speedPopup.addItem(withTitle: "⚡ Fast (5s cycle)")
         speedPopup.addItem(withTitle: "🐢 Slow (20s cycle)")
@@ -591,10 +606,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 5. Game Week Override
         let weekLabel = NSTextField(labelWithString: "NFL Game Week:")
         weekLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        weekLabel.frame = NSRect(x: 24, y: height - 252, width: 140, height: 20)
+        weekLabel.frame = NSRect(x: 24, y: height - 288, width: 140, height: 20)
         contentView.addSubview(weekLabel)
 
-        weekPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 256, width: width - 190, height: 26))
+        weekPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 292, width: width - 190, height: 26))
         weekPopup.addItem(withTitle: "🟢 Live / Auto (Current NFL Week)")
         for w in 1...18 {
             weekPopup.addItem(withTitle: "Week \(w)")
@@ -604,7 +619,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 6. Highlights Feature Toggle Checkbox
         let hlBtn = NSButton(checkboxWithTitle: "Enable Big Play Highlights (Banners & Popups)", target: self, action: #selector(onHighlightsCheckboxToggled))
-        hlBtn.frame = NSRect(x: 24, y: height - 290, width: width - 48, height: 22)
+        hlBtn.frame = NSRect(x: 24, y: height - 326, width: width - 48, height: 22)
         hlBtn.state = isHighlightsEnabled ? .on : .off
         hlBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         contentView.addSubview(hlBtn)
@@ -612,7 +627,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 7. Highlight Audio FX Toggle Checkbox
         let soundBtn = NSButton(checkboxWithTitle: "Enable Highlight Sound FX on Big Plays (Cmd+M)", target: self, action: #selector(onSoundCheckboxToggled))
-        soundBtn.frame = NSRect(x: 24, y: height - 316, width: width - 48, height: 22)
+        soundBtn.frame = NSRect(x: 24, y: height - 352, width: width - 48, height: 22)
         soundBtn.state = isSoundEnabled ? .on : .off
         soundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(soundBtn)
@@ -621,10 +636,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 8. Highlight Sound Theme Selector & Preview
         let soundThemeLabel = NSTextField(labelWithString: "Highlight Sound:")
         soundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        soundThemeLabel.frame = NSRect(x: 24, y: height - 348, width: 140, height: 20)
+        soundThemeLabel.frame = NSRect(x: 24, y: height - 384, width: 140, height: 20)
         contentView.addSubview(soundThemeLabel)
 
-        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 352, width: width - 292, height: 26))
+        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 388, width: width - 292, height: 26))
         soundTheme.addItem(withTitle: "🏈 NFL on FOX / Stadium Horn")
         soundTheme.addItem(withTitle: "⚡ NFL RedZone Chime Alert")
         soundTheme.addItem(withTitle: "🚨 Touchdown Siren & Horn")
@@ -633,7 +648,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(soundTheme)
         self.soundThemePopup = soundTheme
 
-        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 353, width: 94, height: 28))
+        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 389, width: 94, height: 28))
         testSoundBtn.title = "▶ Preview"
         testSoundBtn.bezelStyle = .rounded
         testSoundBtn.target = self
@@ -642,7 +657,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 9. Live In-Game Injury Alerts Toggle Checkbox
         let injBtn = NSButton(checkboxWithTitle: "Enable In-Game Injury Alerts for Owned Players", target: self, action: #selector(onInjuriesCheckboxToggled))
-        injBtn.frame = NSRect(x: 24, y: height - 390, width: width - 48, height: 22)
+        injBtn.frame = NSRect(x: 24, y: height - 426, width: width - 48, height: 22)
         injBtn.state = isInjuriesEnabled ? .on : .off
         injBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         contentView.addSubview(injBtn)
@@ -650,7 +665,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 10. Injury Audio Alert FX Toggle Checkbox
         let injSoundBtn = NSButton(checkboxWithTitle: "Enable Negative Injury Audio FX (Referee Whistle / Buzzer)", target: self, action: #selector(onInjurySoundCheckboxToggled))
-        injSoundBtn.frame = NSRect(x: 24, y: height - 416, width: width - 48, height: 22)
+        injSoundBtn.frame = NSRect(x: 24, y: height - 452, width: width - 48, height: 22)
         injSoundBtn.state = isInjurySoundEnabled ? .on : .off
         injSoundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(injSoundBtn)
@@ -659,10 +674,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 11. Injury Sound Theme Selector & Preview
         let injSoundThemeLabel = NSTextField(labelWithString: "Injury Sound:")
         injSoundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        injSoundThemeLabel.frame = NSRect(x: 24, y: height - 448, width: 140, height: 20)
+        injSoundThemeLabel.frame = NSRect(x: 24, y: height - 484, width: 140, height: 20)
         contentView.addSubview(injSoundThemeLabel)
 
-        let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 452, width: width - 292, height: 26))
+        let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 488, width: width - 292, height: 26))
         injSoundTheme.addItem(withTitle: "📯 Referee Whistle Trill (Default)")
         injSoundTheme.addItem(withTitle: "🚨 Flat Rejection Buzzer")
         injSoundTheme.addItem(withTitle: "📉 Heart Monitor Flatline")
@@ -671,7 +686,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(injSoundTheme)
         self.injurySoundThemePopup = injSoundTheme
 
-        let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 453, width: 94, height: 28))
+        let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 489, width: 94, height: 28))
         testInjSoundBtn.title = "▶ Preview"
         testInjSoundBtn.bezelStyle = .rounded
         testInjSoundBtn.target = self
@@ -763,6 +778,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
     }
 
+    @objc func onPlatformChanged() {
+        let isEspn = (platformPopup?.indexOfSelectedItem == 1)
+        if isEspn {
+            leagueLabel?.stringValue = "ESPN League ID:"
+            if leagueIdField?.stringValue == defaultLeagueID {
+                leagueIdField?.stringValue = ""
+                leagueIdField?.placeholderString = "e.g. 1162468"
+            }
+        } else {
+            leagueLabel?.stringValue = "Sleeper League ID:"
+            if (leagueIdField?.stringValue.isEmpty ?? true) {
+                leagueIdField?.stringValue = defaultLeagueID
+            }
+        }
+    }
+
     @objc func onSoundCheckboxToggled() {
         setSoundEnabled(soundCheckbox?.state == .on)
     }
@@ -846,8 +877,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     }
 
     @objc func onLaunchClicked() {
+        let isEspn = (platformPopup?.indexOfSelectedItem == 1)
+        let platformParam = isEspn ? "espn" : "sleeper"
         let inputLeagueId = leagueIdField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let leagueId = inputLeagueId.isEmpty ? defaultLeagueID : inputLeagueId
+        let leagueId = inputLeagueId.isEmpty ? (isEspn ? "" : defaultLeagueID) : inputLeagueId
         selectedScreenIndex = screenPopup.indexOfSelectedItem
         let screens = NSScreen.screens
         if selectedScreenIndex < screens.count {
@@ -897,7 +930,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
             if isHealthy {
                 writeLogLine("Backend is already running and healthy.")
-                self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
+                self.pushSettingsToBackend(platform: platformParam, leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
                     DispatchQueue.main.async {
                         self.setupWindow?.orderOut(nil)
                         self.launchBtn.isEnabled = true
@@ -913,7 +946,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                         self.launchBtn.isEnabled = true
                         if success {
                             writeLogLine("Backend launched successfully.")
-                            self.pushSettingsToBackend(leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
+                            self.pushSettingsToBackend(platform: platformParam, leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
                                 DispatchQueue.main.async {
                                     self.setupWindow?.orderOut(nil)
                                     self.startHUD()
@@ -941,15 +974,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
     }
 
-    func pushSettingsToBackend(leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, highlightsEnabled: Bool = true, injuriesEnabled: Bool = true, injurySoundEnabled: Bool = true, injurySoundTheme: String = "whistle_blow", completion: @escaping () -> Void) {
+    func pushSettingsToBackend(platform: String = "sleeper", leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, highlightsEnabled: Bool = true, injuriesEnabled: Bool = true, injurySoundEnabled: Bool = true, injurySoundTheme: String = "whistle_blow", completion: @escaping () -> Void) {
         let group = DispatchGroup()
 
-        // 0. Post target Sleeper league ID to preload latest manager avatars and league data
+        // 0. Post target platform and league ID to preload latest manager avatars and league data
         if let leagueUrl = URL(string: "\(serverURL)/api/league") {
             var req = URLRequest(url: leagueUrl)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let body: [String: Any] = ["league_id": leagueId]
+            let body: [String: Any] = ["platform": platform, "league_id": leagueId]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
             
             group.enter()

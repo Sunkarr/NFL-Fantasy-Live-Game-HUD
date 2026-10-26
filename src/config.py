@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -17,11 +18,30 @@ if ENV_FILE.exists():
 else:
     load_dotenv()
 
+
+def get_current_nfl_season() -> str:
+    """Calculate current NFL season year dynamically based on the NFL calendar (March to Feb)."""
+    now = datetime.now()
+    return str(now.year if now.month >= 3 else now.year - 1)
+
+
+# Always active dynamic current season
+CURRENT_SEASON = get_current_nfl_season()
+
+# Fantasy Platform Configuration ('sleeper' or 'espn')
+FANTASY_PLATFORM = os.getenv("FANTASY_PLATFORM", "sleeper").strip().lower()
+
 # Sleeper League Configuration (supports LEAGUE_ID and SLEEPER_LEAGUE_ID)
 LEAGUE_ID = os.getenv("LEAGUE_ID", os.getenv("SLEEPER_LEAGUE_ID", "1390344846723543040"))
 TEAM_NAME = os.getenv("TEAM_NAME", "")
-SEASON = os.getenv("SEASON", "2026")
+SEASON = (os.getenv("SEASON") or "").strip() or CURRENT_SEASON
 TZ = os.getenv("TZ", "Europe/Berlin")
+
+# ESPN Fantasy Configuration (when FANTASY_PLATFORM == 'espn')
+ESPN_LEAGUE_ID = os.getenv("ESPN_LEAGUE_ID", "")
+ESPN_SEASON = (os.getenv("ESPN_SEASON") or "").strip() or SEASON
+ESPN_S2 = os.getenv("ESPN_S2", "")
+ESPN_SWID = os.getenv("ESPN_SWID", "")
 
 # Server & Poller Configuration
 HOST = os.getenv("HOST", "0.0.0.0")
