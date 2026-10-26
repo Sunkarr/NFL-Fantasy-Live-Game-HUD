@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -35,7 +36,10 @@ async def background_poller():
     """Continuously poll Sleeper and ESPN every POLL_INTERVAL_SECONDS."""
     while True:
         try:
+            t0 = time.time()
             await engine.refresh_state()
+            elapsed_ms = (time.time() - t0) * 1000.0
+            logger.debug(f"HUD live polling cycle completed in {elapsed_ms:.1f}ms")
         except asyncio.CancelledError:
             break
         except Exception as e:

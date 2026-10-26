@@ -19,6 +19,48 @@ class SleeperClient:
         self.players_dict: Dict[str, Dict[str, Any]] = {}
         self._load_or_fetch_players()
 
+        # In-memory Multi-Tier TTL Caches (Statics vs Slow vs Live)
+        self._nfl_state_cache: Optional[Dict[str, Any]] = None
+        self._nfl_state_time: float = 0.0
+        self._nfl_state_ttl: float = 60.0  # 60s for NFL calendar state
+
+        self._league_cache: Dict[str, Dict[str, Any]] = {}
+        self._league_cache_time: Dict[str, float] = {}
+        self._league_cache_ttl: float = 300.0  # 5 minutes for static league metadata
+
+        self._users_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._users_cache_time: Dict[str, float] = {}
+        self._users_cache_ttl: float = 300.0  # 5 minutes for manager accounts & avatars
+
+        self._rosters_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._rosters_cache_time: Dict[str, float] = {}
+        self._rosters_cache_ttl: float = 45.0  # 45s for lineups / roster allocations
+
+        self._weekly_stats_cache: Dict[str, Dict[str, Any]] = {}
+        self._weekly_stats_time: Dict[str, float] = {}
+        self._weekly_stats_ttl: float = 10.0  # 10s for live detailed stats
+
+    def clear_cache(self, league_id: Optional[str] = None):
+        """Clear memory caches for league, users, rosters, and stats."""
+        if league_id:
+            self._league_cache.pop(league_id, None)
+            self._league_cache_time.pop(league_id, None)
+            self._users_cache.pop(league_id, None)
+            self._users_cache_time.pop(league_id, None)
+            self._rosters_cache.pop(league_id, None)
+            self._rosters_cache_time.pop(league_id, None)
+        else:
+            self._league_cache.clear()
+            self._league_cache_time.clear()
+            self._users_cache.clear()
+            self._users_cache_time.clear()
+            self._rosters_cache.clear()
+            self._rosters_cache_time.clear()
+            self._nfl_state_cache = None
+            self._nfl_state_time = 0.0
+            self._weekly_stats_cache.clear()
+            self._weekly_stats_time.clear()
+
     def _is_cache_stale(self) -> bool:
         """Check if local players cache is older than 24 hours."""
         if not PLAYERS_CACHE_FILE.exists():
@@ -96,63 +138,99 @@ class SleeperClient:
             logger.error(f"Error downloading players database: {e}")
             return len(self.players_dict)
 
-    async def get_nfl_state(self) -> Dict[str, Any]:
-        """Fetch current NFL state (current week, season, leg, etc.)."""
+    async def get_nfl_state(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """Fetch current NFL state (current week, season, leg, etc.) with 60s TTL."""
+        now = time.time()
+        if not force_refresh and self._nfl_state_cache and (now - self._nfl_state_time < self._nfl_state_ttl):
+            return self._nfl_state_cache
+
         try:
             resp = await self.client.get("https://api.sleeper.app/v1/state/nfl")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            self._nfl_state_cache = data
+            self._nfl_state_time = now
+            return data
         except Exception as e:
             logger.error(f"Error fetching NFL state: {e}")
+            if self._nfl_state_cache:
+                return self._nfl_state_cache
             return {"week": 1, "season": "2026", "season_type": "regular"}
 
-    async def get_league(self, league_id: Optional[str] = None) -> Dict[str, Any]:
-        """Fetch league metadata."""
+    async def get_league(self, league_id: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
+        """Fetch league metadata with 300s TTL."""
         lid = league_id or self.league_id
+        now = time.time()
+        if not force_refresh and lid in self._league_cache and (now - self._league_cache_time.get(lid, 0) < self._league_cache_ttl):
+            return self._league_cache[lid]
+
         try:
             resp = await self.client.get(f"https://api.sleeper.app/v1/league/{lid}")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            self._league_cache[lid] = data
+            self._league_cache_time[lid] = now
+            return data
         except Exception as e:
             logger.error(f"Error fetching league {lid}: {e}")
+            if lid in self._league_cache:
+                return self._league_cache[lid]
             return {"name": "NFL Fantasy League", "season": "2026", "total_rosters": 6}
 
-    async def get_league_info(self, league_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_league_info(self, league_id: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """Alias for get_league."""
-        return await self.get_league(league_id)
+        return await self.get_league(league_id, force_refresh=force_refresh)
 
-    async def get_users(self, league_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Fetch league managers / users."""
+    async def get_users(self, league_id: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Fetch league managers / users with 300s TTL."""
         lid = league_id or self.league_id
+        now = time.time()
+        if not force_refresh and lid in self._users_cache and (now - self._users_cache_time.get(lid, 0) < self._users_cache_ttl):
+            return self._users_cache[lid]
+
         try:
             resp = await self.client.get(f"https://api.sleeper.app/v1/league/{lid}/users")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            self._users_cache[lid] = data
+            self._users_cache_time[lid] = now
+            return data
         except Exception as e:
             logger.error(f"Error fetching users for league {lid}: {e}")
+            if lid in self._users_cache:
+                return self._users_cache[lid]
             return []
 
-    async def get_league_users(self, league_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_league_users(self, league_id: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Alias for get_users."""
-        return await self.get_users(league_id)
+        return await self.get_users(league_id, force_refresh=force_refresh)
 
-    async def get_rosters(self, league_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Fetch league rosters."""
+    async def get_rosters(self, league_id: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Fetch league rosters with 45s TTL."""
         lid = league_id or self.league_id
+        now = time.time()
+        if not force_refresh and lid in self._rosters_cache and (now - self._rosters_cache_time.get(lid, 0) < self._rosters_cache_ttl):
+            return self._rosters_cache[lid]
+
         try:
             resp = await self.client.get(f"https://api.sleeper.app/v1/league/{lid}/rosters")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            self._rosters_cache[lid] = data
+            self._rosters_cache_time[lid] = now
+            return data
         except Exception as e:
             logger.error(f"Error fetching rosters for league {lid}: {e}")
+            if lid in self._rosters_cache:
+                return self._rosters_cache[lid]
             return []
 
-    async def get_league_rosters(self, league_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_league_rosters(self, league_id: Optional[str] = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Alias for get_rosters."""
-        return await self.get_rosters(league_id)
+        return await self.get_rosters(league_id, force_refresh=force_refresh)
 
     async def get_matchups(self, week: int, league_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Fetch matchups for a given week."""
+        """Fetch matchups for a given week (Live endpoint, no artificial delay)."""
         lid = league_id or self.league_id
         try:
             resp = await self.client.get(f"https://api.sleeper.app/v1/league/{lid}/matchups/{week}")
@@ -162,16 +240,24 @@ class SleeperClient:
             logger.error(f"Error fetching matchups for league {lid} week {week}: {e}")
             return []
 
-    async def get_weekly_stats(self, season: str, week: int, season_type: str = "regular") -> Dict[str, Dict[str, Any]]:
-        """Fetch weekly stats for all NFL players (including Free Agents)."""
+    async def get_weekly_stats(self, season: str, week: int, season_type: str = "regular", force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+        """Fetch weekly stats for all NFL players with 10s TTL."""
+        key = f"{season}_{season_type}_{week}"
+        now = time.time()
+        if not force_refresh and key in self._weekly_stats_cache and (now - self._weekly_stats_time.get(key, 0) < self._weekly_stats_ttl):
+            return self._weekly_stats_cache[key]
+
         try:
             url = f"https://api.sleeper.app/v1/stats/nfl/{season_type}/{season}/{week}"
             resp = await self.client.get(url)
             if resp.status_code == 200:
-                return resp.json()
+                data = resp.json()
+                self._weekly_stats_cache[key] = data
+                self._weekly_stats_time[key] = now
+                return data
         except Exception as e:
             logger.warning(f"Error fetching weekly stats for {season} W{week}: {e}")
-        return {}
+        return self._weekly_stats_cache.get(key, {})
 
     def get_player_info(self, player_id: str) -> Dict[str, Any]:
         """Retrieve player details by player_id from cached dictionary."""

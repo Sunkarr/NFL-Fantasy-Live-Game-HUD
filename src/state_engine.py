@@ -88,6 +88,11 @@ class HUDStateEngine:
         self.rosters_map: Dict[int, Dict[str, Any]] = {}
         self.starters_set: Set[str] = set()
 
+        # Multi-Tier In-Memory Cache Fingerprints (Avoids rebuilding manager & roster dicts on unchanged ticks)
+        self._cached_users_fingerprint: Optional[int] = None
+        self._cached_rosters_fingerprint: Optional[int] = None
+        self._cached_roster_players_map: Dict[int, List[str]] = {}
+
         # Multi-Matchup Display & Animation Settings
         # Default: normal (10s cycle for Spotlight, Highlights, and Matchup Shifts)
         self.display_settings = DisplaySettings(
@@ -151,10 +156,14 @@ class HUDStateEngine:
             logger.info(f"Switched to ESPN League ID: {cleaned_id} (season: {self.espn.season})")
         else:
             self.sleeper.league_id = cleaned_id
+            self.sleeper.clear_cache(cleaned_id)
             logger.info(f"Switched to Sleeper League ID: {cleaned_id}")
 
         self.mock_league_active = False
         self.league_meta_cache = {}
+        self._cached_users_fingerprint = None
+        self._cached_rosters_fingerprint = None
+        self._cached_roster_players_map = {}
         self.prev_player_points = {}
         self.prev_player_stats = {}
         self.prev_injury_statuses = {}
@@ -509,13 +518,14 @@ class HUDStateEngine:
             return self.current_state
 
         try:
-            # 1. Fetch current NFL State
-            nfl_state = await self.sleeper.get_nfl_state()
+            # 1. Fetch current NFL State (utilizing 60s in-memory TTL)
+            nfl_state = await self.sleeper.get_nfl_state(force_refresh=is_initial)
             current_week = self.week_override if self.week_override is not None else nfl_state.get("week", 1)
             season_type = nfl_state.get("season_type", "regular")
             season = (self.espn.season if (self.platform == "espn" and self.espn.season) else None) or nfl_state.get("season") or CURRENT_SEASON
 
             # 2. Concurrently fetch League, Users, Rosters, Matchups, Weekly Stats, ESPN Scoreboard, and ESPN Injuries
+            # Note: league_info, users, and rosters resolve from in-memory cache in 0ms when fresh
             if self.platform == "espn":
                 (league_info, users, rosters, raw_matchups), weekly_stats, _, espn_injuries = await asyncio.gather(
                     self.espn.get_league_bundle(current_week, season=season),
@@ -525,9 +535,9 @@ class HUDStateEngine:
                 )
             else:
                 league_info, users, rosters, raw_matchups, weekly_stats, _, espn_injuries = await asyncio.gather(
-                    self.sleeper.get_league_info(),
-                    self.sleeper.get_league_users(),
-                    self.sleeper.get_league_rosters(),
+                    self.sleeper.get_league_info(force_refresh=is_initial),
+                    self.sleeper.get_league_users(force_refresh=is_initial),
+                    self.sleeper.get_league_rosters(force_refresh=is_initial),
                     self.sleeper.get_matchups(current_week),
                     self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
                     self.nfl_tracker.fetch_scoreboard(),
@@ -535,88 +545,102 @@ class HUDStateEngine:
                 )
             scoring_settings = league_info.get("scoring_settings", {}) if isinstance(league_info, dict) else {}
 
-            # Map users: user_id -> display_name, avatar
-            users_map: Dict[str, Dict[str, str]] = {}
-            for u in (users or []):
-                uid = u.get("user_id")
-                meta = u.get("metadata") or {}
-                dname = meta.get("team_name") or u.get("display_name") or f"Manager {uid}"
-                avatar_url = (
-                    resolve_avatar_url(meta.get("avatar"))
-                    or resolve_avatar_url(u.get("avatar"))
-                    or "https://sleepercdn.com/images/v2/icons/player_default.webp"
-                )
-                users_map[uid] = {
-                    "manager_name": u.get("display_name", dname),
-                    "team_name": dname,
-                    "avatar_url": avatar_url
-                }
-
-            # Map rosters: roster_id -> user metadata & assigned accent color
-            rosters_map: Dict[int, Dict[str, Any]] = {}
-            roster_players_map: Dict[int, List[str]] = {}
-            player_to_roster: Dict[str, Dict[str, Any]] = {}
-            starters_set_all: Set[str] = set()
-
-            for idx, r in enumerate(rosters or []):
-                rid = r.get("roster_id")
-                oid = r.get("owner_id")
-                r_meta = r.get("metadata") or {}
-                u_info = users_map.get(oid, {
-                    "manager_name": f"Team {rid}",
-                    "team_name": f"Team {rid}",
-                    "avatar_url": "https://sleepercdn.com/images/v2/icons/player_default.webp"
-                })
-
-                roster_avatar = resolve_avatar_url(r_meta.get("avatar"))
-                avatar_url = roster_avatar or u_info["avatar_url"]
-                team_name = r_meta.get("team_name") or u_info["team_name"]
-                manager_name = u_info["manager_name"]
-
-                mgr_lower = manager_name.lower()
-                team_lower = team_name.lower()
-                is_user_team = (mgr_lower == self.user_team_name) or (team_lower == self.user_team_name)
-
-                # Determine color accent
-                color = None
-                for key, val in MANAGER_COLORS.items():
-                    if key.lower() == mgr_lower or key.lower() == team_lower:
-                        color = val
-                        break
-                if not color:
-                    if is_user_team:
-                        color = "#00f0ff"
-                    else:
-                        r_idx = (rid - 1) if (isinstance(rid, int) and rid > 0) else idx
-                        color = DEFAULT_PALETTE[r_idx % len(DEFAULT_PALETTE)]
-
-                r_dict = {
-                    "roster_id": rid,
-                    "owner_id": oid or "",
-                    "manager_name": manager_name,
-                    "team_name": team_name,
-                    "avatar_url": avatar_url,
-                    "is_user_team": is_user_team,
-                    "color_accent": color
-                }
-                rosters_map[rid] = r_dict
-
-                r_starters = set(str(pid) for pid in (r.get("starters") or []))
-                starters_set_all.update(r_starters)
-
-                r_pids = [str(pid) for pid in (r.get("players") or [])]
-                roster_players_map[rid] = r_pids
-                for pid in r_pids:
-                    is_st = pid in r_starters
-                    player_to_roster[str(pid)] = {
-                        **r_dict,
-                        "is_starter": is_st,
-                        "roster_slot": "STARTER" if is_st else "BENCH"
+            # Fast-path: Check if users and rosters match cached fingerprints
+            users_fp = id(users)
+            rosters_fp = id(rosters)
+            if (
+                users_fp != self._cached_users_fingerprint
+                or rosters_fp != self._cached_rosters_fingerprint
+                or not self.rosters_map
+            ):
+                users_map: Dict[str, Dict[str, str]] = {}
+                for u in (users or []):
+                    uid = u.get("user_id")
+                    meta = u.get("metadata") or {}
+                    dname = meta.get("team_name") or u.get("display_name") or f"Manager {uid}"
+                    avatar_url = (
+                        resolve_avatar_url(meta.get("avatar"))
+                        or resolve_avatar_url(u.get("avatar"))
+                        or "https://sleepercdn.com/images/v2/icons/player_default.webp"
+                    )
+                    users_map[uid] = {
+                        "manager_name": u.get("display_name", dname),
+                        "team_name": dname,
+                        "avatar_url": avatar_url
                     }
 
-            self.rosters_map = rosters_map
-            self.player_to_roster = player_to_roster
-            self.starters_set = starters_set_all
+                rosters_map: Dict[int, Dict[str, Any]] = {}
+                roster_players_map: Dict[int, List[str]] = {}
+                player_to_roster: Dict[str, Dict[str, Any]] = {}
+                starters_set_all: Set[str] = set()
+
+                for idx, r in enumerate(rosters or []):
+                    rid = r.get("roster_id")
+                    oid = r.get("owner_id")
+                    r_meta = r.get("metadata") or {}
+                    u_info = users_map.get(oid, {
+                        "manager_name": f"Team {rid}",
+                        "team_name": f"Team {rid}",
+                        "avatar_url": "https://sleepercdn.com/images/v2/icons/player_default.webp"
+                    })
+
+                    roster_avatar = resolve_avatar_url(r_meta.get("avatar"))
+                    avatar_url = roster_avatar or u_info["avatar_url"]
+                    team_name = r_meta.get("team_name") or u_info["team_name"]
+                    manager_name = u_info["manager_name"]
+
+                    mgr_lower = manager_name.lower()
+                    team_lower = team_name.lower()
+                    is_user_team = (mgr_lower == self.user_team_name) or (team_lower == self.user_team_name)
+
+                    # Determine color accent
+                    color = None
+                    for key, val in MANAGER_COLORS.items():
+                        if key.lower() == mgr_lower or key.lower() == team_lower:
+                            color = val
+                            break
+                    if not color:
+                        if is_user_team:
+                            color = "#00f0ff"
+                        else:
+                            r_idx = (rid - 1) if (isinstance(rid, int) and rid > 0) else idx
+                            color = DEFAULT_PALETTE[r_idx % len(DEFAULT_PALETTE)]
+
+                    r_dict = {
+                        "roster_id": rid,
+                        "owner_id": oid or "",
+                        "manager_name": manager_name,
+                        "team_name": team_name,
+                        "avatar_url": avatar_url,
+                        "is_user_team": is_user_team,
+                        "color_accent": color
+                    }
+                    rosters_map[rid] = r_dict
+
+                    r_starters = set(str(pid) for pid in (r.get("starters") or []))
+                    starters_set_all.update(r_starters)
+
+                    r_pids = [str(pid) for pid in (r.get("players") or [])]
+                    roster_players_map[rid] = r_pids
+                    for pid in r_pids:
+                        is_st = pid in r_starters
+                        player_to_roster[str(pid)] = {
+                            **r_dict,
+                            "is_starter": is_st,
+                            "roster_slot": "STARTER" if is_st else "BENCH"
+                        }
+
+                self._cached_users_fingerprint = users_fp
+                self._cached_rosters_fingerprint = rosters_fp
+                self._cached_roster_players_map = roster_players_map
+                self.rosters_map = rosters_map
+                self.player_to_roster = player_to_roster
+                self.starters_set = starters_set_all
+            else:
+                rosters_map = self.rosters_map
+                roster_players_map = self._cached_roster_players_map
+                player_to_roster = self.player_to_roster
+                starters_set_all = self.starters_set
 
             # Group matchups by matchup_id
             matchup_groups: Dict[int, List[Dict[str, Any]]] = {}
