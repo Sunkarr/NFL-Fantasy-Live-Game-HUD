@@ -416,12 +416,39 @@
 
     .preview-pts-value {
       font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 900;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       padding: 2px 7px;
       border-radius: 6px;
       border: 1.5px solid currentColor;
       box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+      display: inline-flex;
+      align-items: center;
+      gap: 3.5px;
+      line-height: 1;
+    }
+
+    .bench-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 900;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.22);
+      border: 1px solid rgba(245, 158, 11, 0.55);
+      border-radius: 3px;
+      height: 14px;
+      min-width: 14px;
+      padding: 0 3px;
+      margin-right: 6px;
+      line-height: 1;
+      box-sizing: border-box;
+      text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+      letter-spacing: 0;
+      flex-shrink: 0;
     }
 
     .preview-timer-bar {
@@ -731,6 +758,12 @@
           <button class="btn-gray" onclick="triggerPreset('Free Agent WR', 5.4, 'Free Agent', 'WR', 'FA', 'https://sleepercdn.com/content/nfl/players/9488.jpg', 'big_play', false)">
             ⚡ Free Agent Deep Catch (+5.4 · Slate Gray)
           </button>
+          <button class="btn-orange" style="background: rgba(245, 158, 11, 0.2); border-color: #f59e0b; color: #fbbf24;" onclick="triggerPreset('Bijan Robinson', 6.0, 'auto', 'RB', 'ATL', 'https://sleepercdn.com/content/nfl/players/9226.jpg', 'touchdown', true, false)">
+            🏈 [BENCH] Bijan Robinson (+6.0 TD · Bench)
+          </button>
+          <button class="btn-orange" style="background: rgba(245, 158, 11, 0.2); border-color: #f59e0b; color: #fbbf24;" onclick="triggerPreset('CeeDee Lamb', 7.1, 'auto', 'WR', 'DAL', 'https://sleepercdn.com/content/nfl/players/6786.jpg', 'touchdown', true, false)">
+            🏈 [BENCH] CeeDee Lamb (+7.1 TD · Bench)
+          </button>
           <button style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="triggerQueueBurst()">
             💥 3-Play Queue Burst (Test Queue & Re-Jiggle)
           </button>
@@ -829,8 +862,11 @@
           <button style="background: rgba(245, 158, 11, 0.22); border-color: #f59e0b; color: #fef3c7;" onclick="triggerInjuryPreset('Christian McCaffrey', 'Doubtful', 'Achilles - Doubtful to Return', 'auto', 'RB', 'SF', 'https://sleepercdn.com/content/nfl/players/4034.jpg')">
             ⚠️ Christian McCaffrey [DOUBTFUL · Achilles]
           </button>
-          <button style="background: rgba(239, 68, 68, 0.22); border-color: #ef4444; color: #fee2e2;" onclick="triggerInjuryPreset('Justin Jefferson', 'Out', 'Hamstring - Ruled Out', 'auto', 'WR', 'MIN', 'https://sleepercdn.com/content/nfl/players/6794.jpg')">
+          <button style="background: rgba(239, 68, 68, 0.22); border-color: #ef4444; color: #fee2e2;" onclick="triggerInjuryPreset('Justin Jefferson', 'Out', 'Hamstring - Ruled Out', 'auto', 'WR', 'MIN', 'https://sleepercdn.com/content/nfl/players/6794.jpg', 22.0, true)">
             🚑 Justin Jefferson [OUT · Hamstring]
+          </button>
+          <button style="background: rgba(245, 158, 11, 0.22); border-color: #f59e0b; color: #fef3c7;" onclick="triggerInjuryPreset('Bijan Robinson', 'Out', 'Hamstring - Ruled Out', 'auto', 'RB', 'ATL', 'https://sleepercdn.com/content/nfl/players/9226.jpg', 12.4, false)">
+            🚑 [BENCH] Bijan Robinson [OUT · Hamstring]
           </button>
           <button class="btn-orange" style="background: rgba(239, 68, 68, 0.3); border-color: #ef4444; color: #fee2e2;" onclick="simulateRandomInjury()">
             🎲 Zufällige Live-Verletzung simulieren
@@ -1281,7 +1317,7 @@
       }
     }
 
-    async function triggerPreset(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, highlightType, isTouchdown) {
+    async function triggerPreset(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, highlightType, isTouchdown, isStarter = true) {
       try {
         const resp = await fetch('/api/test/highlight', {
           method: 'POST',
@@ -1294,7 +1330,9 @@
             nfl_team: nflTeam,
             headshot_url: headshotUrl,
             highlight_type: highlightType,
-            is_touchdown: isTouchdown
+            is_touchdown: isTouchdown,
+            is_starter: isStarter,
+            roster_slot: isStarter ? 'STARTER' : 'BENCH'
           })
         });
         const data = await resp.json();
@@ -1310,7 +1348,8 @@
           hl.color_accent,
           true,
           hl.highlight_type || highlightType,
-          hl.is_touchdown !== undefined ? hl.is_touchdown : isTouchdown
+          hl.is_touchdown !== undefined ? hl.is_touchdown : isTouchdown,
+          hl.is_starter !== undefined ? hl.is_starter : isStarter
         );
         showToast(`Highlight sent: ${playerName} (${hl.fantasy_team_name || teamName})`);
       } catch (e) {
@@ -1391,7 +1430,7 @@
       return `${initial} ${surname}`;
     }
 
-    function renderSandboxPill(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, explicitColor, shouldJiggle, highlightType, isTouchdown) {
+    function renderSandboxPill(playerName, deltaPoints, teamName, pos, nflTeam, headshotUrl, explicitColor, shouldJiggle, highlightType, isTouchdown, isStarter = true) {
       if (typeof explicitColor === 'boolean') {
         shouldJiggle = explicitColor;
         explicitColor = null;
@@ -1403,6 +1442,7 @@
       
       const jiggleClass = shouldJiggle ? 'jiggling' : '';
       const fallbackUrl = (pos === 'DEF' && nflTeam) ? `https://a.espncdn.com/i/teamlogos/nfl/500/${nflTeam.toLowerCase()}.png` : 'https://sleepercdn.com/images/v2/icons/player_default.webp';
+      const benchPrefix = (!isStarter) ? '<span class="bench-tag" title="Bench Player">B</span>' : '';
 
       container.innerHTML = `
         <div class="preview-pill ${jiggleClass}" style="border-color: ${accentColor}; --hl-glow-color: ${accentColor};">
@@ -1420,7 +1460,7 @@
 
           <div class="preview-score-badge">
             <span class="preview-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
-              +${deltaPoints.toFixed(1)} <span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
+              ${benchPrefix}<span>+${deltaPoints.toFixed(1)}</span><span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
             </span>
           </div>
 
@@ -1981,7 +2021,7 @@
       } catch (e) {}
     }
 
-    async function triggerInjuryPreset(playerName, injuryStatus, injuryDetail, fantasyTeamName, position, nflTeam, headshotUrl) {
+    async function triggerInjuryPreset(playerName, injuryStatus, injuryDetail, fantasyTeamName, position, nflTeam, headshotUrl, points = 0.0, isStarter = true) {
       if (injurySoundEnabled) {
         previewInjurySoundDirect(injurySoundTheme);
       }
@@ -1996,7 +2036,10 @@
             fantasy_team_name: fantasyTeamName || 'auto',
             position: position || 'WR',
             nfl_team: nflTeam || 'NFL',
-            headshot_url: headshotUrl || null
+            headshot_url: headshotUrl || null,
+            points: points,
+            is_starter: isStarter,
+            roster_slot: isStarter ? 'STARTER' : 'BENCH'
           })
         });
         const data = await res.json();

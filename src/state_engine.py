@@ -3,7 +3,7 @@ import uuid
 import time
 import random
 import logging
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional, Any, Tuple, Set
 
 from src.models import (
     HUDState, MatchupData, TeamScore, PlayerInfo,
@@ -77,6 +77,7 @@ class HUDStateEngine:
         self.user_team_name: str = TEAM_NAME.lower()
         self.player_to_roster: Dict[str, Dict[str, Any]] = {}
         self.rosters_map: Dict[int, Dict[str, Any]] = {}
+        self.starters_set: Set[str] = set()
 
         # Multi-Matchup Display & Animation Settings
         # Default: normal (10s cycle for Spotlight, Highlights, and Matchup Shifts)
@@ -127,6 +128,7 @@ class HUDStateEngine:
         self.prev_injury_statuses = {}
         self.highlight_queue.clear()
         self.injury_queue.clear()
+        self.starters_set.clear()
         self.clear_mock_overrides()
         logger.info(f"Sleeper League ID switched to: {cleaned_id}")
 
@@ -513,6 +515,7 @@ class HUDStateEngine:
             rosters_map: Dict[int, Dict[str, Any]] = {}
             roster_players_map: Dict[int, List[str]] = {}
             player_to_roster: Dict[str, Dict[str, Any]] = {}
+            starters_set_all: Set[str] = set()
 
             for idx, r in enumerate(rosters or []):
                 rid = r.get("roster_id")
@@ -557,13 +560,22 @@ class HUDStateEngine:
                 }
                 rosters_map[rid] = r_dict
 
+                r_starters = set(str(pid) for pid in (r.get("starters") or []))
+                starters_set_all.update(r_starters)
+
                 r_pids = [str(pid) for pid in (r.get("players") or [])]
                 roster_players_map[rid] = r_pids
                 for pid in r_pids:
-                    player_to_roster[str(pid)] = r_dict
+                    is_st = pid in r_starters
+                    player_to_roster[str(pid)] = {
+                        **r_dict,
+                        "is_starter": is_st,
+                        "roster_slot": "STARTER" if is_st else "BENCH"
+                    }
 
             self.rosters_map = rosters_map
             self.player_to_roster = player_to_roster
+            self.starters_set = starters_set_all
 
             # Group matchups by matchup_id
             matchup_groups: Dict[int, List[Dict[str, Any]]] = {}
@@ -750,7 +762,10 @@ class HUDStateEngine:
                                         color_accent=inj_accent,
                                         is_free_agent=False,
                                         duration_seconds=duration_sec,
-                                        is_user_team=r_meta["is_user_team"]
+                                        is_user_team=r_meta["is_user_team"],
+                                        points=round(pts, 1),
+                                        is_starter=is_starter,
+                                        roster_slot=roster_slot
                                     )
                                     new_injuries.append(inj_event)
                                     self.injury_queue.append(inj_event)
@@ -804,7 +819,9 @@ class HUDStateEngine:
                                     duration_seconds=duration_sec,
                                     is_user_team=r_meta["is_user_team"],
                                     highlight_type=hl_type,
-                                    is_touchdown=has_td
+                                    is_touchdown=has_td,
+                                    is_starter=is_starter,
+                                    roster_slot=roster_slot
                                 )
                                 new_highlights.append(highlight)
                                 self.highlight_queue.append(highlight)
@@ -1038,7 +1055,9 @@ class HUDStateEngine:
         nfl_team: str = "BUF",
         headshot_url: Optional[str] = None,
         highlight_type: Optional[str] = None,
-        is_touchdown: Optional[bool] = None
+        is_touchdown: Optional[bool] = None,
+        is_starter: Optional[bool] = None,
+        roster_slot: Optional[str] = None
     ) -> HighlightEvent:
         """Trigger an instant test highlight play with auto player/defense lookup and accurate manager color."""
         p_lower = player_name.lower().strip()
@@ -1189,6 +1208,16 @@ class HUDStateEngine:
         hl_is_td = (is_touchdown if is_touchdown is not None else (hl_type == "touchdown"))
         action_label = "Touchdown" if hl_is_td else ("Field Goal" if hl_type == "field_goal" else ("Def Stop" if hl_type == "def_stop" else "Big Play"))
 
+        if is_starter is None:
+            if detected_roster and "is_starter" in detected_roster:
+                is_starter = bool(detected_roster["is_starter"])
+            elif hasattr(self, "starters_set") and resolved_pid:
+                is_starter = (str(resolved_pid) in self.starters_set)
+            else:
+                is_starter = True
+        if roster_slot is None:
+            roster_slot = "STARTER" if is_starter else "BENCH"
+
         duration_sec = self.get_speed_seconds()
 
         hl = HighlightEvent(
@@ -1208,7 +1237,9 @@ class HUDStateEngine:
             duration_seconds=duration_sec,
             is_user_team=(fantasy_team_name.lower() == self.user_team_name),
             highlight_type=hl_type,
-            is_touchdown=hl_is_td
+            is_touchdown=hl_is_td,
+            is_starter=is_starter,
+            roster_slot=roster_slot
         )
         self.highlight_queue.append(hl)
         if self.current_state:
@@ -1223,7 +1254,10 @@ class HUDStateEngine:
         fantasy_team_name: str = "auto",
         position: str = "WR",
         nfl_team: str = "DAL",
-        headshot_url: Optional[str] = None
+        headshot_url: Optional[str] = None,
+        points: Optional[float] = None,
+        is_starter: Optional[bool] = None,
+        roster_slot: Optional[str] = None
     ) -> InjuryAlertEvent:
         """Trigger an instant test injury alert for a player with manager lookup and negative styling."""
         p_lower = player_name.lower().strip()
@@ -1299,6 +1333,18 @@ class HUDStateEngine:
                         manager_name = r["manager_name"]
                         break
 
+        if is_starter is None:
+            if detected_roster and "is_starter" in detected_roster:
+                is_starter = bool(detected_roster["is_starter"])
+            elif hasattr(self, "starters_set") and resolved_pid:
+                is_starter = (str(resolved_pid) in self.starters_set)
+            else:
+                is_starter = True
+        if roster_slot is None:
+            roster_slot = "STARTER" if is_starter else "BENCH"
+        if points is None:
+            points = float(self.prev_player_points.get(str(resolved_pid), 0.0))
+
         duration_sec = self.get_speed_seconds()
         accent = "#ef4444" if injury_status.lower() in ["out", "ir", "injured reserve"] else "#f59e0b"
 
@@ -1316,7 +1362,10 @@ class HUDStateEngine:
             color_accent=accent,
             is_free_agent=is_fa,
             duration_seconds=duration_sec,
-            is_user_team=(fantasy_team_name.lower() == self.user_team_name)
+            is_user_team=(fantasy_team_name.lower() == self.user_team_name),
+            points=round(points, 1),
+            is_starter=is_starter,
+            roster_slot=roster_slot
         )
         self.injury_queue.append(inj)
         if self.current_state:
@@ -1326,13 +1375,14 @@ class HUDStateEngine:
     def simulate_random_delta(self) -> HighlightEvent:
         """Pick a random active star and trigger a highlight play."""
         candidates = [
-            ("Josh Allen", "QB", "BUF", 6.4, True, "touchdown"),
-            ("Justin Jefferson", "WR", "MIN", 8.2, True, "touchdown"),
-            ("Saquon Barkley", "RB", "PHI", 5.5, False, "big_play"),
-            ("CeeDee Lamb", "WR", "DAL", 7.1, True, "touchdown"),
-            ("Trey McBride", "TE", "ARI", 4.8, False, "big_play"),
-            ("Brandon Aubrey", "K", "DAL", 3.0, False, "field_goal"),
-            ("Minnesota Vikings", "DEF", "MIN", 6.0, True, "touchdown"),
+            ("Josh Allen", "QB", "BUF", 6.4, True, "touchdown", True),
+            ("Justin Jefferson", "WR", "MIN", 8.2, True, "touchdown", True),
+            ("Saquon Barkley", "RB", "PHI", 5.5, False, "big_play", True),
+            ("CeeDee Lamb", "WR", "DAL", 7.1, True, "touchdown", False),
+            ("Bijan Robinson", "RB", "ATL", 6.0, True, "touchdown", False),
+            ("Trey McBride", "TE", "ARI", 4.8, False, "big_play", True),
+            ("Brandon Aubrey", "K", "DAL", 3.0, False, "field_goal", True),
+            ("Minnesota Vikings", "DEF", "MIN", 6.0, True, "touchdown", True),
         ]
         chosen = random.choice(candidates)
         return self.trigger_test_highlight(
@@ -1341,17 +1391,19 @@ class HUDStateEngine:
             nfl_team=chosen[2],
             delta_points=chosen[3],
             is_touchdown=chosen[4],
-            highlight_type=chosen[5]
+            highlight_type=chosen[5],
+            is_starter=chosen[6]
         )
 
     def simulate_random_injury(self) -> InjuryAlertEvent:
         """Pick a random active star and trigger an injury alert."""
         candidates = [
-            ("CeeDee Lamb", "Out", "Shoulder - Out for game", "WR", "DAL"),
-            ("Josh Allen", "Questionable", "Ankle - Questionable to return", "QB", "BUF"),
-            ("Saquon Barkley", "Out", "Knee - Ruled out for remainder of game", "RB", "PHI"),
-            ("Justin Jefferson", "Questionable", "Hamstring - Questionable to return", "WR", "MIN"),
-            ("Trey McBride", "Questionable", "Ribs - Questionable to return", "TE", "ARI"),
+            ("CeeDee Lamb", "Out", "Shoulder - Out for game", "WR", "DAL", False, 18.6),
+            ("Josh Allen", "Questionable", "Ankle - Questionable to return", "QB", "BUF", True, 24.2),
+            ("Saquon Barkley", "Out", "Knee - Ruled out for remainder of game", "RB", "PHI", True, 14.8),
+            ("Bijan Robinson", "Out", "Hamstring - Ruled out", "RB", "ATL", False, 12.4),
+            ("Justin Jefferson", "Questionable", "Hamstring - Questionable to return", "WR", "MIN", True, 22.0),
+            ("Trey McBride", "Questionable", "Ribs - Questionable to return", "TE", "ARI", True, 9.4),
         ]
         chosen = random.choice(candidates)
         return self.trigger_test_injury(
@@ -1359,5 +1411,7 @@ class HUDStateEngine:
             injury_status=chosen[1],
             injury_detail=chosen[2],
             position=chosen[3],
-            nfl_team=chosen[4]
+            nfl_team=chosen[4],
+            is_starter=chosen[5],
+            points=chosen[6]
         )

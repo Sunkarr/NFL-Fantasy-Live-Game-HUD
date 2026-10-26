@@ -253,7 +253,7 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2.5px;
+  gap: 5px;
   height: 14px;
 }
 
@@ -554,6 +554,29 @@ html, body {
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
+/* Compact Bench Tag directly adjacent to Points Value (Highlight, Player, Injured Cards) */
+.bench-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 900;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 3px;
+  height: 14px;
+  min-width: 14px;
+  padding: 0 3px;
+  margin-right: 6px;
+  line-height: 1;
+  box-sizing: border-box;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
 .flame-icon {
   display: inline-block;
   animation: flame-flicker 0.7s infinite alternate ease-in-out;
@@ -604,10 +627,21 @@ html, body {
 
 .spotlight-pts-value {
   font-family: var(--font-mono);
-  font-size: clamp(11px, 0.9vw, 13px);
-  font-weight: 900;
-  line-height: 1.1;
+  font-size: clamp(12px, 1vw, 15px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   text-align: right;
+  white-space: nowrap;
+}
+
+.spotlight-pts-value .pts-number {
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Highlight Point Badge Pop Animation */
@@ -631,10 +665,14 @@ html, body {
 }
 
 .pts-sub {
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 800;
   color: var(--color-text-dim);
-  margin-left: 2px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.85;
+  margin-left: 3px;
 }
 
 /* Highlight Countdown Timer Line */
@@ -847,6 +885,15 @@ html, body {
   text-overflow: ellipsis;
   max-width: 140px;
   font-weight: 600;
+}
+
+.spotlight-pill.live-injury .spotlight-pts-value {
+  color: #fee2e2 !important;
+}
+
+.spotlight-pill.live-injury .pts-sub {
+  color: #fca5a5 !important;
+  opacity: 0.9;
 }
 
 @keyframes injury-entrance-pulse {

@@ -80,6 +80,33 @@ class TestInjuriesAndToggles(unittest.TestCase):
         data = res.json()
         self.assertEqual(data["status"], "ok")
 
+    def test_injury_starter_vs_bench_and_points(self):
+        # 1. Starter injury with points
+        resp_starter = self.client.post("/api/test/injury", json={
+            "player_name": "Josh Allen",
+            "injury_status": "Questionable",
+            "points": 24.2,
+            "is_starter": True
+        })
+        self.assertEqual(resp_starter.status_code, 200)
+        inj_s = resp_starter.json()["injury"]
+        self.assertTrue(inj_s["is_starter"])
+        self.assertEqual(inj_s["roster_slot"], "STARTER")
+        self.assertEqual(inj_s["points"], 24.2)
+
+        # 2. Bench injury with points
+        resp_bench = self.client.post("/api/test/injury", json={
+            "player_name": "Bijan Robinson",
+            "injury_status": "Out",
+            "points": 12.4,
+            "is_starter": False
+        })
+        self.assertEqual(resp_bench.status_code, 200)
+        inj_b = resp_bench.json()["injury"]
+        self.assertFalse(inj_b["is_starter"])
+        self.assertEqual(inj_b["roster_slot"], "BENCH")
+        self.assertEqual(inj_b["points"], 12.4)
+
     def test_negative_sound_files_exist(self):
         # Verify 4 negative audio files are served via static files
         files = [

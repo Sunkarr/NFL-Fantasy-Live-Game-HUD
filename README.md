@@ -23,6 +23,21 @@ Each manager in the live ticker has a high-contrast, glowing neon accent color c
 
 ---
 
+## 🃏 Spotlight Cards: Highlights, Active Players & Injury Alerts
+
+The right-side spotlight segment displays three distinct card types covering all rostered players across your fantasy league:
+
+1. **Highlight Card (Big Plays & Scores)**: Triggered dynamically when a rostered player makes an impactful scoring play or touchdown (+5.0 FPTS or TD). Features box wobble/jiggle entrance, metallic sheen sweep, team color glow, and fanfare audio.
+2. **Player Card (Active Position MVP Rotation)**: Rotates smoothly through active owned players who have scored fantasy points, highlighting position leaders with crown badges (`👑 #1`).
+3. **Injured Card (Live In-Game Injury Alerts)**: Triggered in real time via ESPN NFL injury reports when a rostered player shifts to `Out`, `Questionable`, `Doubtful`, or `IR`. Features emergency pulsating glow, injury status badge, diagnosis detail, and negative sound FX.
+
+### Compact Broadcast Formatting & Bench Indicator `[B]`
+- **Concise Jersey Names**: Player names are formatted as `Initial. LastName` (e.g. `P. Mahomes`, `J. Allen`, `C. McCaffrey`, `A. St. Brown`) for crisp readability without horizontal overflow. Team defenses display standard 3-letter abbreviations (e.g. `MIN`, `BUF`).
+- **Bench Indicator `[B]`**: Whenever a player is on the bench, a compact amber `[B]` badge is rendered directly to the left of their points (e.g. `[B] +6.4 FPTS` or `[B] 18.2 FPTS`) across all three card types. Starters remain clean without an extra tag for a minimalist look.
+- **Full Roster Coverage**: Starters and bench players are tracked across all three cards with automated starter/bench status resolution.
+
+---
+
 ## 🍏 Native macOS Swift App & DMG Installer
 
 You can launch the HUD directly as a standalone, native Mac app:

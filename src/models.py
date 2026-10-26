@@ -69,6 +69,8 @@ class HighlightEvent(BaseModel):
     is_user_team: bool = False
     highlight_type: str = "big_play"  # "touchdown", "big_play", "field_goal", "def_stop"
     is_touchdown: bool = False
+    is_starter: bool = True
+    roster_slot: str = "STARTER"  # "STARTER" or "BENCH"
 
 
 class InjuryAlertEvent(BaseModel):
@@ -87,6 +89,9 @@ class InjuryAlertEvent(BaseModel):
     timestamp: float = Field(default_factory=time.time)
     duration_seconds: int = 8
     is_user_team: bool = False
+    points: float = 0.0
+    is_starter: bool = True
+    roster_slot: str = "STARTER"  # "STARTER" or "BENCH"
 
 
 class IdleSpotlight(BaseModel):

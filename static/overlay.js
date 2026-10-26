@@ -693,7 +693,7 @@ class NFLGameHUD {
   // Position MVP Cycle & Prominent Highlights Engine
   // =========================================================================
   startIdleSpotlightCycle(forceImmediate = false) {
-    if (this.currentHighlight) return;
+    if (this.currentHighlight || this.currentInjury) return;
 
     const activeMVPs = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
 
@@ -711,7 +711,7 @@ class NFLGameHUD {
             </div>
             <div class="spotlight-score-badge">
               <span class="spotlight-pts-value" style="color: var(--color-text-dim); font-weight: 700;">
-                0.0 <span style="font-size: 9px; color: var(--color-text-dim);">FPTS</span>
+                <span class="pts-number">0.0</span><span class="pts-sub" style="font-size: 9px; color: var(--color-text-dim);">FPTS</span>
               </span>
             </div>
           </div>
@@ -734,7 +734,7 @@ class NFLGameHUD {
 
     this.idleTimer = setInterval(() => {
       const currentList = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
-      if (!this.currentHighlight && currentList.length > 0) {
+      if (!this.currentHighlight && !this.currentInjury && currentList.length > 0) {
         this.currentSpotlightIndex = (this.currentSpotlightIndex + 1) % currentList.length;
         this.renderIdleSpotlight(currentList[this.currentSpotlightIndex]);
       }
@@ -743,7 +743,7 @@ class NFLGameHUD {
 
   restartIdleTimer() {
     this.stopIdleSpotlightCycle();
-    if (!this.currentHighlight) {
+    if (!this.currentHighlight && !this.currentInjury) {
       this.startIdleSpotlightCycle();
     }
   }
@@ -759,7 +759,7 @@ class NFLGameHUD {
     if (!this.highlightsEnabled || !highlight) return;
     this.highlightQueue.push(highlight);
     
-    if (!this.currentHighlight) {
+    if (!this.currentHighlight && !this.currentInjury) {
       this.stopIdleSpotlightCycle();
       this.playNextHighlight();
     } else {
@@ -791,12 +791,20 @@ class NFLGameHUD {
     if (!this.highlightsEnabled) {
       this.highlightQueue = [];
       this.currentHighlight = null;
-      if (!this.currentInjury) this.startIdleSpotlightCycle(true);
+      if (this.injuryQueue.length > 0) {
+        this.playNextInjury();
+      } else if (!this.currentInjury) {
+        this.startIdleSpotlightCycle(true);
+      }
       return;
     }
     if (this.highlightQueue.length === 0) {
       this.currentHighlight = null;
-      this.startIdleSpotlightCycle(true);
+      if (this.injuryQueue.length > 0) {
+        this.playNextInjury();
+      } else if (!this.currentInjury) {
+        this.startIdleSpotlightCycle(true);
+      }
       return;
     }
 
@@ -816,7 +824,14 @@ class NFLGameHUD {
     }, durationMs);
   }
 
-  formatHighlightDisplayName(name, position, nflTeam) {
+  getBenchPrefix(player) {
+    if (!player) return '';
+    const isBench = player.is_starter === false || (player.roster_slot || '').toUpperCase() === 'BENCH';
+    if (!isBench) return '';
+    return '<span class="bench-tag" title="Bench Player">B</span>';
+  }
+
+  formatPlayerDisplayName(name, position, nflTeam) {
     if (!name) return '';
     const pos = (position || '').toUpperCase();
     
@@ -837,7 +852,7 @@ class NFLGameHUD {
         'CHICAGO BEARS': 'CHI', 'CINCINNATI BENGALS': 'CIN', 'COWBOYS': 'DAL',
         'CLEVELAND BROWNS': 'CLE', 'DENVER BRONCOS': 'DEN', 'INDIANAPOLIS COLTS': 'IND',
         'JACKSONVILLE JAGUARS': 'JAX', 'LAS VEGAS RAIDERS': 'LV', 'NEW ENGLAND PATRIOTS': 'NE',
-        'ARIZONA CARDINALS': 'ARI', 'TENNESSEE TITANS': 'TEN', 'WASHINGTON COMMANDERS': 'WAS'
+        'ARIZONA CARDINALS': 'ARI', 'TENSEE TITANS': 'TEN', 'WASHINGTON COMMANDERS': 'WAS'
       };
       for (const [key, abbr] of Object.entries(teamMap)) {
         if (upperName.includes(key) || key.includes(upperName)) {
@@ -855,6 +870,10 @@ class NFLGameHUD {
     const surname = parts.slice(1).join(' ');
 
     return `${initial} ${surname}`;
+  }
+
+  formatHighlightDisplayName(name, position, nflTeam) {
+    return this.formatPlayerDisplayName(name, position, nflTeam);
   }
 
   getHighlightHeaderInfo(hl) {
@@ -906,7 +925,7 @@ class NFLGameHUD {
           <span class="spotlight-top-tag" style="color: #ffffff; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
             ${header.emoji} ${header.label}
           </span>
-          <span class="spotlight-player-name">${this.escapeHtml(this.formatHighlightDisplayName(hl.player_name, hl.position, hl.nfl_team))}</span>
+          <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(hl.player_name, hl.position, hl.nfl_team))}</span>
         </div>
 
         <div class="spotlight-queue-slot">
@@ -915,7 +934,7 @@ class NFLGameHUD {
 
         <div class="spotlight-score-badge">
           <span class="spotlight-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${this.hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${this.hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
-            +${hl.delta_points.toFixed(1)}<span class="pts-sub" style="color: #ffffff !important; opacity: 0.9; margin-left: 2px;">FPTS</span>
+            ${this.getBenchPrefix(hl)}<span class="pts-number">+${hl.delta_points.toFixed(1)}</span><span class="pts-sub" style="color: #ffffff !important; opacity: 0.9;">FPTS</span>
           </span>
         </div>
 
@@ -950,18 +969,133 @@ class NFLGameHUD {
           <span class="spotlight-top-tag" style="color: ${accentColor}; font-weight: 800; text-shadow: 0 0 6px ${this.hexToRgba(accentColor, 0.3)};">
             ${topTagText}
           </span>
-          <span class="spotlight-player-name">${this.escapeHtml(spotlight.player_name)}</span>
+          <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(spotlight.player_name, spotlight.position, spotlight.nfl_team))}</span>
         </div>
 
         <div class="spotlight-queue-slot"></div>
 
         <div class="spotlight-score-badge">
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 800;">
-            ${pts.toFixed(1)} <span style="font-size: 8.5px; color: #ffffff; opacity: 0.85; margin-left: 2px;">FPTS</span>
+            ${this.getBenchPrefix(spotlight)}<span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
           </span>
         </div>
       </div>
     `;
+  }
+
+
+  // =========================================================================
+  // Live Injury Alert System
+  // =========================================================================
+  enqueueInjury(injury) {
+    if (!this.injuriesEnabled || !injury) return;
+    this.injuryQueue.push(injury);
+
+    if (!this.currentHighlight && !this.currentInjury) {
+      this.stopIdleSpotlightCycle();
+      this.playNextInjury();
+    }
+  }
+
+  playNextInjury() {
+    if (!this.injuriesEnabled) {
+      this.injuryQueue = [];
+      this.currentInjury = null;
+      if (this.highlightQueue.length > 0) {
+        this.playNextHighlight();
+      } else if (!this.currentHighlight) {
+        this.startIdleSpotlightCycle(true);
+      }
+      return;
+    }
+    if (this.injuryQueue.length === 0) {
+      this.currentInjury = null;
+      if (this.highlightQueue.length > 0) {
+        this.playNextHighlight();
+      } else if (!this.currentHighlight) {
+        this.startIdleSpotlightCycle(true);
+      }
+      return;
+    }
+
+    const inj = this.injuryQueue.shift();
+    this.currentInjury = inj;
+
+    this.playInjurySound();
+
+    const durationSec = this.getSpeedDurationSeconds();
+    this.renderInjuryPill(inj, durationSec);
+
+    const durationMs = durationSec * 1000;
+    if (this.injuryTimer) clearTimeout(this.injuryTimer);
+
+    this.injuryTimer = setTimeout(() => {
+      this.playNextInjury();
+    }, durationMs);
+  }
+
+  renderInjuryPill(inj, durationSec = 8) {
+    if (!this.dom.highlightContainer || !inj) return;
+
+    const rawStatus = (inj.injury_status || 'OUT').toUpperCase();
+    const isOutOrIR = ['OUT', 'IR', 'INJURED RESERVE'].includes(rawStatus);
+    const statusClass = isOutOrIR ? 'status-out' : 'status-ques';
+    const accentColor = isOutOrIR ? '#ef4444' : '#f59e0b';
+    const pts = Number(inj.points || 0);
+    const benchPrefix = this.getBenchPrefix(inj);
+    const shortName = this.formatPlayerDisplayName(inj.player_name, inj.position, inj.nfl_team);
+    const mgrName = inj.manager_name || inj.fantasy_team_name || 'ROSTER';
+    const topTagText = `🚑 ${rawStatus} · ${this.escapeHtml(mgrName.toUpperCase())}`;
+
+    this.dom.highlightContainer.innerHTML = `
+      <div class="spotlight-pill live-injury" style="border-color: ${accentColor} !important; box-shadow: 0 0 16px ${this.hexToRgba(accentColor, 0.5)}, 0 4px 18px rgba(0, 0, 0, 0.8) !important;">
+        <div class="spotlight-avatar-wrap">
+          <img class="spotlight-avatar" src="${inj.headshot_url || 'https://sleepercdn.com/images/v2/icons/player_default.webp'}" alt="${inj.player_name}" style="border-color: ${accentColor};" onerror="window.hud && window.hud.handleAvatarError(this, '${inj.nfl_team || ""}', ${inj.position === "DEF"})" />
+          <span class="spotlight-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${accentColor}; color: #ffffff; font-weight: 800;">${inj.position || 'NFL'}</span>
+        </div>
+
+        <div class="spotlight-info">
+          <span class="spotlight-top-tag" style="color: ${isOutOrIR ? '#fca5a5' : '#fef3c7'} !important;">
+            ${topTagText}
+          </span>
+          <span class="spotlight-player-name">${this.escapeHtml(shortName)}</span>
+        </div>
+
+        <div class="spotlight-queue-slot" style="min-width: 58px;">
+          <span class="injury-status-badge ${statusClass}">${this.escapeHtml(rawStatus)}</span>
+        </div>
+
+        <div class="spotlight-score-badge">
+          <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 800;">
+            ${benchPrefix}<span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
+          </span>
+        </div>
+
+        <div class="spotlight-timer-bar" style="background: ${accentColor}; box-shadow: 0 0 8px ${this.hexToRgba(accentColor, 0.75)}; animation: timer-shrink ${durationSec}s linear forwards;"></div>
+      </div>
+    `;
+  }
+
+  getInjurySoundUrl() {
+    const themes = {
+      whistle_blow: '/static/sounds/injury_whistle.wav',
+      buzzer_flat: '/static/sounds/injury_buzzer.wav',
+      flatline: '/static/sounds/injury_flatline.wav',
+      record_scratch: '/static/sounds/injury_record_scratch.wav'
+    };
+    return themes[this.injurySoundTheme] || themes.whistle_blow;
+  }
+
+  playInjurySound() {
+    if (!this.injurySoundEnabled) return;
+    try {
+      const audio = new Audio(this.getInjurySoundUrl());
+      audio.volume = 0.85;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {});
+      }
+    } catch (e) {}
   }
 
   // =========================================================================

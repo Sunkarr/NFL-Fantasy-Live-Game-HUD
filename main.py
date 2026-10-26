@@ -373,7 +373,9 @@ async def trigger_test_highlight(
     nfl_team: str = Body("BUF", embed=True),
     headshot_url: Optional[str] = Body(None, embed=True),
     highlight_type: Optional[str] = Body(None, embed=True),
-    is_touchdown: Optional[bool] = Body(None, embed=True)
+    is_touchdown: Optional[bool] = Body(None, embed=True),
+    is_starter: Optional[bool] = Body(None, embed=True),
+    roster_slot: Optional[str] = Body(None, embed=True)
 ):
     """Trigger a manual test highlight event with custom parameters."""
     highlight = engine.trigger_test_highlight(
@@ -384,7 +386,9 @@ async def trigger_test_highlight(
         nfl_team=nfl_team,
         headshot_url=headshot_url,
         highlight_type=highlight_type,
-        is_touchdown=is_touchdown
+        is_touchdown=is_touchdown,
+        is_starter=is_starter,
+        roster_slot=roster_slot
     )
     await ws_manager.broadcast({
         "type": "PUSH_HIGHLIGHT",
@@ -401,7 +405,10 @@ async def trigger_test_injury(
     fantasy_team_name: str = Body("auto", embed=True),
     position: str = Body("WR", embed=True),
     nfl_team: str = Body("DAL", embed=True),
-    headshot_url: Optional[str] = Body(None, embed=True)
+    headshot_url: Optional[str] = Body(None, embed=True),
+    points: Optional[float] = Body(None, embed=True),
+    is_starter: Optional[bool] = Body(None, embed=True),
+    roster_slot: Optional[str] = Body(None, embed=True)
 ):
     """Trigger a manual test injury alert event with custom parameters."""
     injury = engine.trigger_test_injury(
@@ -411,7 +418,10 @@ async def trigger_test_injury(
         fantasy_team_name=fantasy_team_name,
         position=position,
         nfl_team=nfl_team,
-        headshot_url=headshot_url
+        headshot_url=headshot_url,
+        points=points,
+        is_starter=is_starter,
+        roster_slot=roster_slot
     )
     await ws_manager.broadcast({
         "type": "PUSH_INJURY",

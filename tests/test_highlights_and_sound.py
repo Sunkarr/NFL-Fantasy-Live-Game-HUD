@@ -191,6 +191,29 @@ class TestHighlightsAndSound(unittest.TestCase):
                 self.assertEqual(wf.getsampwidth(), 2)
                 self.assertGreater(wf.getnframes(), 0)
 
+    def test_highlight_starter_vs_bench(self):
+        # 1. Starter highlight
+        resp_starter = self.client.post("/api/test/highlight", json={
+            "player_name": "Josh Allen",
+            "delta_points": 6.4,
+            "is_starter": True
+        })
+        self.assertEqual(resp_starter.status_code, 200)
+        hl_s = resp_starter.json()["highlight"]
+        self.assertTrue(hl_s["is_starter"])
+        self.assertEqual(hl_s["roster_slot"], "STARTER")
+
+        # 2. Bench highlight
+        resp_bench = self.client.post("/api/test/highlight", json={
+            "player_name": "Bijan Robinson",
+            "delta_points": 6.0,
+            "is_starter": False
+        })
+        self.assertEqual(resp_bench.status_code, 200)
+        hl_b = resp_bench.json()["highlight"]
+        self.assertFalse(hl_b["is_starter"])
+        self.assertEqual(hl_b["roster_slot"], "BENCH")
+
     def test_frontend_templates_contain_sound_and_jiggle(self):
         # 1. overlay.html (clean top bar with week tag & toast, sound toggled in Welcome Dialog)
         resp_html = self.client.get("/overlay")
