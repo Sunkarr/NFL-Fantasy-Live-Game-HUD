@@ -547,7 +547,7 @@ class HUDStateEngine:
                     self.sleeper.get_league_info(force_refresh=is_initial),
                     self.sleeper.get_league_users(force_refresh=is_initial),
                     self.sleeper.get_league_rosters(force_refresh=is_initial),
-                    self.sleeper.get_matchups(current_week),
+                    self.sleeper.get_matchups(current_week, force_refresh=is_initial),
                     self.sleeper.get_weekly_stats(season=season, week=current_week, season_type=season_type),
                     self.nfl_tracker.fetch_scoreboard(),
                     self.nfl_tracker.fetch_injuries()
@@ -662,6 +662,13 @@ class HUDStateEngine:
             duration_sec = self.get_speed_seconds()
             new_highlights: List[HighlightEvent] = []
             new_injuries: List[InjuryAlertEvent] = []
+
+            # Retain previous matchups if raw_matchups is temporarily empty due to API hiccup
+            if not raw_matchups and self.current_state and self.current_state.matchups and not is_initial:
+                logger.warning(
+                    f"Matchups temporarily unavailable for week {current_week}. Retaining existing {len(self.current_state.matchups)} matchups."
+                )
+                matchup_models = self.current_state.matchups
 
             # Track active players per position across all fantasy managers
             active_by_position: Dict[str, List[Dict[str, Any]]] = {}
@@ -1038,6 +1045,9 @@ class HUDStateEngine:
                             roster_slot=p["roster_slot"],
                             rank=rank
                         ))
+
+            if not idle_spotlights and self.current_state and self.current_state.idle_spotlights and not raw_matchups:
+                idle_spotlights = self.current_state.idle_spotlights
 
             active_id = str(self.espn.league_id) if self.platform == "espn" else str(self.sleeper.league_id)
             # Update Current State

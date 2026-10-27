@@ -1,6 +1,6 @@
 import unittest
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 from starlette.testclient import TestClient
 
 from main import app, engine
@@ -16,9 +16,7 @@ class TestCachingAndPerformance(unittest.TestCase):
 
         # Mock http calls
         mock_data_league = {"name": "Cached League", "total_rosters": 10}
-        mock_data_users = [{"user_id": "u1", "display_name": "Manager 1"}]
-        mock_data_rosters = [{"roster_id": 1, "owner_id": "u1", "players": ["4984"]}]
-        mock_data_nfl = {"week": 7, "season": "2024", "season_type": "regular"}
+        mock_data_matchups = [{"matchup_id": 1, "roster_id": 1, "points": 105.4}]
 
         client.client.get = AsyncMock()
 
@@ -47,6 +45,53 @@ class TestCachingAndPerformance(unittest.TestCase):
         client.clear_cache("1390344846723543040")
         res4 = loop.run_until_complete(client.get_league("1390344846723543040"))
         self.assertEqual(client.client.get.call_count, 3)
+
+        loop.close()
+
+    def test_sleeper_matchups_caching_and_404_resilience(self):
+        client = SleeperClient(league_id="1390344846723543040")
+        mock_matchups = [{"matchup_id": 1, "roster_id": 1, "points": 88.5}]
+
+        client.client.get = AsyncMock()
+        client.client.get.return_value.status_code = 200
+        client.client.get.return_value.json = lambda: mock_matchups
+
+        import asyncio
+        loop = asyncio.new_event_loop()
+
+        # 1. Initial fetch caches matchups
+        res1 = loop.run_until_complete(client.get_matchups(week=8))
+        self.assertEqual(len(res1), 1)
+        self.assertEqual(res1[0]["points"], 88.5)
+        self.assertEqual(client.client.get.call_count, 1)
+
+        # 2. Second fetch within TTL hits memory cache
+        res2 = loop.run_until_complete(client.get_matchups(week=8))
+        self.assertEqual(res2, mock_matchups)
+        self.assertEqual(client.client.get.call_count, 1)
+
+        # 3. Simulate API 404 error (e.g. Sleeper weekly rollover or Cloudflare caching)
+        # Should gracefully serve cached matchups instead of raising or returning []
+        client._matchups_cache_time.clear()  # Expire TTL
+        client.client.get.return_value.status_code = 404
+        client.client.get.return_value.json = lambda: None
+
+        res_404 = loop.run_until_complete(client.get_matchups(week=8))
+        self.assertEqual(len(res_404), 1, "Should gracefully return cached matchups on 404")
+        self.assertEqual(res_404[0]["points"], 88.5)
+
+        # 4. Simulate Network Exception
+        client._matchups_cache_time.clear()  # Expire TTL
+        client.client.get.side_effect = Exception("Connection timeout")
+
+        res_err = loop.run_until_complete(client.get_matchups(week=8))
+        self.assertEqual(len(res_err), 1, "Should gracefully return cached matchups on network error")
+        self.assertEqual(res_err[0]["points"], 88.5)
+
+        # 5. Clear cache and verify empty return when no cache exists
+        client.clear_cache("1390344846723543040")
+        res_empty = loop.run_until_complete(client.get_matchups(week=8))
+        self.assertEqual(res_empty, [])
 
         loop.close()
 
