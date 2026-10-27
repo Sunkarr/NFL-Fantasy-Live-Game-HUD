@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NFL Fantasy HUD — Control & Simulation Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #080c14;
@@ -217,6 +220,253 @@
       margin-top: 4px;
     }
 
+    /* =========================================================================
+       Miniature HUD Bar Scoped Styles (Live Clean Studio Preview)
+       ========================================================================= */
+    .mini-hud-bar {
+      width: 100%;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 12px;
+      background: #0b0e14;
+      border: 1px solid #1a202c;
+      border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .mini-week-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      letter-spacing: 0.06em;
+      background: #141a24;
+      border: 1px solid #232d3f;
+      border-radius: 4px;
+      color: #94a3b8;
+      font-family: var(--font-family);
+    }
+
+    .mini-sound-btn {
+      font-size: 12px;
+      padding: 4px 6px;
+      background: #141a24;
+      border: 1px solid #232d3f;
+      border-radius: 4px;
+    }
+
+    .mini-matchups-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .mini-matchup-card {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 12px;
+      background: #141a24;
+      border: 1px solid #232d3f;
+      border-radius: 4px;
+      box-shadow: none;
+    }
+
+    .mini-teams-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .mini-team-side {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mini-avatar {
+      width: 24px;
+      height: 24px;
+      object-fit: cover;
+      border-radius: 50%;
+      border-width: 1.5px;
+      box-shadow: none;
+    }
+
+    .mini-rz-slot {
+      display: flex;
+      align-items: center;
+      min-width: 6px;
+    }
+
+    .mini-rz-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .mini-scores {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mini-score {
+      font-family: var(--font-family);
+      font-weight: 600;
+      font-size: 14px;
+      color: #e2e8f0;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mini-score.leading {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    .mini-vs {
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 700;
+      background: transparent;
+      padding: 0;
+    }
+
+    .mini-bars-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+    }
+
+    .mini-bar {
+      width: 100%;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .mini-score-bar {
+      display: flex;
+      height: 2px;
+      border-radius: 1px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .mini-min-bar {
+      height: 2px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .mini-highlight-container {
+      width: 260px;
+      height: 48px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .mini-spotlight-pill {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+      background: #141a24;
+      border: 1px solid #232d3f;
+      border-radius: 4px;
+      box-shadow: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-spotlight-avatar-wrap {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .mini-spotlight-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 1.5px solid #00f0ff;
+      box-shadow: none;
+    }
+
+    .mini-pos-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      font-size: 7.5px;
+      font-weight: 900;
+      padding: 1px 3px;
+      line-height: 1;
+      border-radius: 3px;
+      background: #00f0ff;
+      color: #000;
+    }
+
+    .mini-spotlight-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mini-spotlight-top {
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .mini-spotlight-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-pts {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      color: #00f0ff;
+      font-family: var(--font-family);
+    }
+
+    .mini-timer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      width: 65%;
+      background: #00f0ff;
+    }
+
     /* Sandbox Interactive Box */
     .sandbox-preview-wrapper {
       background: rgba(0, 0, 0, 0.6);
@@ -415,14 +665,15 @@
     }
 
     .preview-pts-value {
-      font-family: var(--font-mono);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-variant-numeric: tabular-nums;
       font-size: 15px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       padding: 2px 7px;
-      border-radius: 6px;
-      border: 1.5px solid currentColor;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      border: 1px solid currentColor;
+      box-shadow: none;
       display: inline-flex;
       align-items: center;
       gap: 3.5px;
@@ -433,9 +684,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-mono);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-variant-numeric: tabular-nums;
       font-size: 9px;
-      font-weight: 900;
+      font-weight: 700;
       color: #fbbf24;
       background: rgba(245, 158, 11, 0.22);
       border: 1px solid rgba(245, 158, 11, 0.55);
@@ -446,7 +698,6 @@
       margin-right: 6px;
       line-height: 1;
       box-sizing: border-box;
-      text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
       letter-spacing: 0;
       flex-shrink: 0;
     }
@@ -704,12 +955,112 @@
     </div>
 
     <div class="grid">
+      <!-- HUD Live Preview & Test Center -->
+      <div class="card full-width" style="border-color: rgba(56, 189, 248, 0.45); background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%);">
+        <h2>
+          <div class="card-title-left">
+            <span>🖥️ HUD Live Preview & Test Center</span>
+            <span id="active-theme-badge" class="status-badge" style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">CLEAN STUDIO · RECTANGULAR CARDS</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <a href="/overlay" target="_blank" style="text-decoration: none;">
+              <button class="btn-cyan" style="font-size: 12px; padding: 6px 12px;">📺 Live Overlay öffnen ↗</button>
+            </a>
+          </div>
+        </h2>
+        <p class="subtext">
+          Echtzeit-Vorschau des Overlays im Clean Studio Design mit eckigen Kacheln (4px Corner Radius) und unaufgeregter Inter-Typografie – 100% störungsfrei, ohne Windows-Vista Glanzeffekte und Bevels.
+        </p>
+
+        <!-- Live Interactive Mini HUD Bar Preview -->
+        <div style="margin-top: 20px; background: rgba(0, 0, 0, 0.5); border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);">
+              🖥️ Live-Vorschau des Overlays (Clean Studio)
+            </span>
+            <div style="display: flex; gap: 8px;">
+              <button style="font-size: 11px; padding: 4px 10px;" onclick="testPreviewHighlight()">⚡ Test Highlight Entrance</button>
+              <button style="font-size: 11px; padding: 4px 10px;" onclick="testPreviewRedZone()">🔴 Test Red Zone Pips</button>
+            </div>
+          </div>
+
+          <!-- The miniature HUD bar container -->
+          <div id="mini-hud-preview-bar" class="mini-hud-bar">
+            <!-- Week Badge & Sound Button -->
+            <div class="mini-hud-brand">
+              <span class="mini-week-tag">WK 2</span>
+              <span class="mini-sound-btn">🔊</span>
+            </div>
+
+            <!-- Center Matchup Kachel -->
+            <div class="mini-matchups-container">
+              <div class="mini-matchup-card">
+                <div class="mini-teams-row">
+                  <!-- Team Left -->
+                  <div class="mini-team-side left">
+                    <img src="https://sleepercdn.com/images/v2/icons/player_default.webp" class="mini-avatar mini-avatar-a" style="border-color: #00f0ff;" />
+                    <div class="mini-rz-slot" id="mini-rz-left"></div>
+                  </div>
+
+                  <!-- Scores -->
+                  <div class="mini-scores">
+                    <span class="mini-score leading" style="color: #00f0ff;">114.8</span>
+                    <span class="mini-vs">·</span>
+                    <span class="mini-score">102.4</span>
+                  </div>
+
+                  <!-- Team Right -->
+                  <div class="mini-team-side right">
+                    <div class="mini-rz-slot" id="mini-rz-right">
+                      <span class="mini-rz-dot" style="background: #ff00aa; box-shadow: 0 0 6px #ff00aa;"></span>
+                    </div>
+                    <img src="https://sleepercdn.com/images/v2/icons/player_default.webp" class="mini-avatar mini-avatar-b" style="border-color: #ff00aa;" />
+                  </div>
+                </div>
+
+                <!-- Dual Progress Bars -->
+                <div class="mini-bars-group">
+                  <div class="mini-bar mini-score-bar">
+                    <div style="width: 52.8%; height: 100%; background: #00f0ff;"></div>
+                    <div style="width: 47.2%; height: 100%; background: #ff00aa;"></div>
+                  </div>
+                  <div class="mini-bar mini-min-bar">
+                    <div style="width: 42%; height: 100%; background: #cbd5e1; opacity: 0.95;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Highlight / Spotlight Pill -->
+            <div class="mini-highlight-container">
+              <div id="mini-spotlight-pill" class="mini-spotlight-pill">
+                <div class="mini-spotlight-avatar-wrap">
+                  <img src="https://sleepercdn.com/content/nfl/players/4984.jpg" class="mini-spotlight-avatar" />
+                  <span class="mini-pos-badge">QB</span>
+                </div>
+                <div class="mini-spotlight-info">
+                  <div class="mini-spotlight-top">
+                    <span style="color: #00f0ff; font-weight: 800;">JOSH ALLEN</span>
+                    <span style="font-size: 8px; color: var(--text-dim);">· BUF</span>
+                  </div>
+                  <div class="mini-spotlight-name">Touchdown Pass (+6.4)</div>
+                </div>
+                <div class="mini-score-badge">
+                  <span class="mini-pts" style="color: #00f0ff;">+6.4</span>
+                </div>
+                <div class="mini-timer-bar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Live Highlight Simulator & Sound Station -->
       <div class="card full-width" style="border-color: rgba(0, 240, 255, 0.35);">
         <h2>
           <div class="card-title-left">
             <span>💥 Highlight Play & Sound Simulation Station</span>
-            <span id=\"sound-status-badge\" class=\"status-badge\">SOUND ON</span>
+            <span id="sound-status-badge" class="status-badge">SOUND ON</span>
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <select id="sound-theme-select" onchange="changeSoundTheme(this.value)" style="padding: 7px 10px; font-size: 12px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--card-border); color: #fff; border-radius: 6px; cursor: pointer;">
@@ -1105,6 +1456,38 @@
     let soundEnabled = true;
     let soundTheme = 'fox_horn';
     let audioCtx = null;
+
+    let miniRzState = 1;
+    function testPreviewRedZone() {
+      miniRzState = (miniRzState + 1) % 4; // 0, 1, 2, 3
+      const slotLeft = document.getElementById('mini-rz-left');
+      const slotRight = document.getElementById('mini-rz-right');
+      if (slotLeft) slotLeft.innerHTML = '';
+      if (slotRight) slotRight.innerHTML = '';
+
+      if (miniRzState === 1 && slotRight) {
+        slotRight.innerHTML = '<span class="mini-rz-dot" style="background: #ff00aa; box-shadow: 0 0 6px #ff00aa;"></span>';
+        showToast('🔴 Red Zone: 1 Dot auf Team B');
+      } else if (miniRzState === 2 && slotRight) {
+        slotRight.innerHTML = '<span class="mini-rz-dot" style="background: #ff00aa; margin-right: 2px;"></span><span class="mini-rz-dot" style="background: #ff00aa;"></span>';
+        showToast('🔴 Red Zone: 2 Dots auf Team B');
+      } else if (miniRzState === 3 && slotLeft && slotRight) {
+        slotLeft.innerHTML = '<span class="mini-rz-dot" style="background: #00f0ff;"></span>';
+        slotRight.innerHTML = '<span style="font-size: 8px; font-weight: 800; background: #ff00aa; color: #fff; padding: 1px 3px; border-radius: 2px;">3+</span>';
+        showToast('🔴 Red Zone: Dueling Starters (1 Dot vs 3+)');
+      } else {
+        showToast('🔴 Red Zone: Keine Spieler in der Red Zone');
+      }
+    }
+
+    function testPreviewHighlight() {
+      const pill = document.getElementById('mini-spotlight-pill');
+      if (!pill) return;
+      pill.style.animation = 'none';
+      void pill.offsetWidth;
+      pill.style.animation = 'clean-highlight-slide-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both';
+      showToast('✨ Clean Studio Slide-In Entrance abgespielt (störungsfrei)');
+    }
 
     const SOUND_FILES = {
       fox_horn: '/static/sounds/nfl_fox_horn.wav',

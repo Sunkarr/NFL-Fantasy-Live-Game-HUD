@@ -51,6 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var statusLabel: NSTextField!
     var launchBtn: NSButton!
 
+    var selectedTheme: String = "clean_minimal"
     var selectedScreenIndex: Int = 0
     var selectedScreenName: String? = nil
     var retryCount: Int = 0
@@ -504,13 +505,51 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
         updateServerStatus()
         setupWindow?.center()
+        setupWindow?.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) + 1)
         setupWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Show live HUD overlay immediately so settings can be seen in real time!
+        ensureHUDRunning()
+    }
+
+    func ensureHUDRunning() {
+        checkBackendHealth { [weak self] isHealthy in
+            guard let self = self else { return }
+            if isHealthy {
+                DispatchQueue.main.async {
+                    self.startHUD()
+                    self.pushCurrentSettingsLive()
+                    self.updateServerStatus()
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.statusLabel?.stringValue = "Starting HUD engine process..."
+                    self.statusLabel?.textColor = .systemBlue
+                }
+                let leagueId = self.leagueIdField?.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) ?? self.defaultLeagueID
+                self.launchBackendProcess(leagueId: leagueId.isEmpty ? self.defaultLeagueID : leagueId) { [weak self] success, errorSnippet in
+                    guard let self = self else { return }
+                    DispatchQueue.main.async {
+                        if success {
+                            writeLogLine("Backend engine launched successfully for live setup preview.")
+                            self.updateServerStatus()
+                            self.startHUD()
+                            self.pushCurrentSettingsLive()
+                        } else {
+                            self.statusLabel?.stringValue = "Backend offline — click 'Save & Close' to retry."
+                            self.statusLabel?.textColor = .systemOrange
+                            writeLogLine("Backend failed to start during setup preview: \(errorSnippet)")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     func createSetupWindow() {
         let width: CGFloat = 520
-        let height: CGFloat = 675
+        let height: CGFloat = 680
         let rect = NSRect(x: 0, y: 0, width: width, height: height)
 
         setupWindow = NSWindow(
@@ -565,6 +604,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         leagueIdField = NSTextField(frame: NSRect(x: 168, y: height - 146, width: width - 192, height: 24))
         leagueIdField.stringValue = defaultLeagueID
+        leagueIdField.target = self
+        leagueIdField.action = #selector(onSettingChangedLive)
         contentView.addSubview(leagueIdField)
 
         // 2. Monitor / Screen Selection Dropdown
@@ -574,6 +615,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         contentView.addSubview(screenLabel)
 
         screenPopup = NSPopUpButton(frame: NSRect(x: 166, y: height - 184, width: width - 190, height: 26))
+        screenPopup.target = self
+        screenPopup.action = #selector(onScreenChanged)
         contentView.addSubview(screenPopup)
         refreshScreenList()
 
@@ -588,6 +631,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         modePopup.addItem(withTitle: "Continuous Ticker (Rolling marquee)")
         modePopup.addItem(withTitle: "Step Shift (1 exits left, 1 enters right)")
         modePopup.selectItem(at: 0)
+        modePopup.target = self
+        modePopup.action = #selector(onSettingChangedLive)
         contentView.addSubview(modePopup)
 
         // 4. Animation / Transition Speed
@@ -601,6 +646,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         speedPopup.addItem(withTitle: "Fast (5s cycle)")
         speedPopup.addItem(withTitle: "Slow (20s cycle)")
         speedPopup.selectItem(at: 0)
+        speedPopup.target = self
+        speedPopup.action = #selector(onSettingChangedLive)
         contentView.addSubview(speedPopup)
 
         // 5. Game Week Override
@@ -615,11 +662,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             weekPopup.addItem(withTitle: "Week \(w)")
         }
         weekPopup.selectItem(at: 0)
+        weekPopup.target = self
+        weekPopup.action = #selector(onSettingChangedLive)
         contentView.addSubview(weekPopup)
 
         // 6. Highlights Feature Toggle Checkbox
         let hlBtn = NSButton(checkboxWithTitle: "Enable Big Play Highlights (Banners & Popups)", target: self, action: #selector(onHighlightsCheckboxToggled))
-        hlBtn.frame = NSRect(x: 24, y: height - 326, width: width - 48, height: 22)
+        hlBtn.frame = NSRect(x: 24, y: height - 328, width: width - 48, height: 22)
         hlBtn.state = isHighlightsEnabled ? .on : .off
         hlBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         contentView.addSubview(hlBtn)
@@ -627,7 +676,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 7. Highlight Audio FX Toggle Checkbox
         let soundBtn = NSButton(checkboxWithTitle: "Enable Highlight Sound FX on Big Plays (Cmd+M)", target: self, action: #selector(onSoundCheckboxToggled))
-        soundBtn.frame = NSRect(x: 24, y: height - 352, width: width - 48, height: 22)
+        soundBtn.frame = NSRect(x: 24, y: height - 354, width: width - 48, height: 22)
         soundBtn.state = isSoundEnabled ? .on : .off
         soundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(soundBtn)
@@ -636,19 +685,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 8. Highlight Sound Theme Selector & Preview
         let soundThemeLabel = NSTextField(labelWithString: "Highlight Sound:")
         soundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        soundThemeLabel.frame = NSRect(x: 24, y: height - 384, width: 140, height: 20)
+        soundThemeLabel.frame = NSRect(x: 24, y: height - 386, width: 140, height: 20)
         contentView.addSubview(soundThemeLabel)
 
-        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 388, width: width - 292, height: 26))
+        let soundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 390, width: width - 292, height: 26))
         soundTheme.addItem(withTitle: "NFL on FOX / Stadium Horn")
         soundTheme.addItem(withTitle: "NFL RedZone Chime Alert")
         soundTheme.addItem(withTitle: "Touchdown Siren & Horn")
         soundTheme.addItem(withTitle: "Classic Arena Fanfare")
         soundTheme.selectItem(at: 0)
+        soundTheme.target = self
+        soundTheme.action = #selector(onSettingChangedLive)
         contentView.addSubview(soundTheme)
         self.soundThemePopup = soundTheme
 
-        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 389, width: 94, height: 28))
+        let testSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 391, width: 94, height: 28))
         testSoundBtn.title = "Preview"
         testSoundBtn.bezelStyle = .rounded
         testSoundBtn.target = self
@@ -657,7 +708,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 9. Live In-Game Injury Alerts Toggle Checkbox
         let injBtn = NSButton(checkboxWithTitle: "Enable In-Game Injury Alerts for Owned Players", target: self, action: #selector(onInjuriesCheckboxToggled))
-        injBtn.frame = NSRect(x: 24, y: height - 426, width: width - 48, height: 22)
+        injBtn.frame = NSRect(x: 24, y: height - 428, width: width - 48, height: 22)
         injBtn.state = isInjuriesEnabled ? .on : .off
         injBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         contentView.addSubview(injBtn)
@@ -665,7 +716,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         // 10. Injury Audio Alert FX Toggle Checkbox
         let injSoundBtn = NSButton(checkboxWithTitle: "Enable Negative Injury Audio FX (Referee Whistle / Buzzer)", target: self, action: #selector(onInjurySoundCheckboxToggled))
-        injSoundBtn.frame = NSRect(x: 24, y: height - 452, width: width - 48, height: 22)
+        injSoundBtn.frame = NSRect(x: 24, y: height - 454, width: width - 48, height: 22)
         injSoundBtn.state = isInjurySoundEnabled ? .on : .off
         injSoundBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(injSoundBtn)
@@ -674,19 +725,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         // 11. Injury Sound Theme Selector & Preview
         let injSoundThemeLabel = NSTextField(labelWithString: "Injury Sound:")
         injSoundThemeLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        injSoundThemeLabel.frame = NSRect(x: 24, y: height - 484, width: 140, height: 20)
+        injSoundThemeLabel.frame = NSRect(x: 24, y: height - 486, width: 140, height: 20)
         contentView.addSubview(injSoundThemeLabel)
 
-        let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 488, width: width - 292, height: 26))
+        let injSoundTheme = NSPopUpButton(frame: NSRect(x: 166, y: height - 490, width: width - 292, height: 26))
         injSoundTheme.addItem(withTitle: "Referee Whistle Trill (Default)")
         injSoundTheme.addItem(withTitle: "Flat Rejection Buzzer")
         injSoundTheme.addItem(withTitle: "Heart Monitor Flatline")
         injSoundTheme.addItem(withTitle: "Vinyl Record Scratch")
         injSoundTheme.selectItem(at: 0)
+        injSoundTheme.target = self
+        injSoundTheme.action = #selector(onSettingChangedLive)
         contentView.addSubview(injSoundTheme)
         self.injurySoundThemePopup = injSoundTheme
 
-        let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 489, width: 94, height: 28))
+        let testInjSoundBtn = NSButton(frame: NSRect(x: width - 118, y: height - 491, width: 94, height: 28))
         testInjSoundBtn.title = "Preview"
         testInjSoundBtn.bezelStyle = .rounded
         testInjSoundBtn.target = self
@@ -708,15 +761,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         logsBtn.action = #selector(viewLogs)
         contentView.addSubview(logsBtn)
 
-        let quitBtn = NSButton(frame: NSRect(x: width - 215, y: 16, width: 85, height: 32))
+        let quitBtn = NSButton(frame: NSRect(x: width - 235, y: 16, width: 85, height: 32))
         quitBtn.title = "Quit"
         quitBtn.bezelStyle = .rounded
         quitBtn.target = self
         quitBtn.action = #selector(quitApp)
         contentView.addSubview(quitBtn)
 
-        launchBtn = NSButton(frame: NSRect(x: width - 120, y: 16, width: 100, height: 32))
-        launchBtn.title = "Launch HUD"
+        launchBtn = NSButton(frame: NSRect(x: width - 140, y: 16, width: 120, height: 32))
+        launchBtn.title = "Save & Close"
         launchBtn.bezelStyle = .rounded
         launchBtn.isHighlighted = true
         launchBtn.keyEquivalent = "\r"
@@ -792,10 +845,91 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                 leagueIdField?.stringValue = defaultLeagueID
             }
         }
+        pushCurrentSettingsLive()
+    }
+
+    @objc func onScreenChanged() {
+        selectedScreenIndex = screenPopup.indexOfSelectedItem
+        let screens = NSScreen.screens
+        if selectedScreenIndex < screens.count {
+            selectedScreenName = screens[selectedScreenIndex].localizedName
+        }
+        writeLogLine("Screen selection changed to: \(selectedScreenName ?? "Unknown")")
+        repositionHUD()
+    }
+
+    @objc func onSettingChangedLive() {
+        pushCurrentSettingsLive()
+    }
+
+    func pushCurrentSettingsLive() {
+        guard let platformPopup = platformPopup,
+              let leagueIdField = leagueIdField,
+              let modePopup = modePopup,
+              let speedPopup = speedPopup,
+              let weekPopup = weekPopup else { return }
+
+        let isEspn = (platformPopup.indexOfSelectedItem == 1)
+        let platformParam = isEspn ? "espn" : "sleeper"
+        let inputLeagueId = leagueIdField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let leagueId = inputLeagueId.isEmpty ? (isEspn ? "" : defaultLeagueID) : inputLeagueId
+
+        let modeIndex = modePopup.indexOfSelectedItem
+        let modeParam: String
+        switch modeIndex {
+        case 1: modeParam = "ticker"
+        case 2: modeParam = "step"
+        default: modeParam = "auto"
+        }
+
+        let speedIndex = speedPopup.indexOfSelectedItem
+        let speedParam: String
+        switch speedIndex {
+        case 1: speedParam = "fast"
+        case 2: speedParam = "slow"
+        default: speedParam = "normal"
+        }
+
+        let weekIndex = weekPopup.indexOfSelectedItem
+        let weekParam: Int? = (weekIndex > 0) ? weekIndex : nil
+
+        let themeParam = "clean_minimal"
+        selectedTheme = themeParam
+
+        isSoundEnabled = (soundCheckbox?.state == .on)
+        isHighlightsEnabled = (highlightsCheckbox?.state == .on)
+        isInjuriesEnabled = (injuriesCheckbox?.state == .on)
+        isInjurySoundEnabled = (injurySoundCheckbox?.state == .on)
+
+        let soundThemeIndex = soundThemePopup?.indexOfSelectedItem ?? 0
+        let soundThemeKeys = ["fox_horn", "redzone", "td_siren", "brass_fanfare"]
+        let soundThemeParam = soundThemeKeys[min(max(soundThemeIndex, 0), soundThemeKeys.count - 1)]
+        selectedSoundTheme = soundThemeParam
+
+        let injThemeIdx = injurySoundThemePopup?.indexOfSelectedItem ?? 0
+        let injThemeKeys = ["whistle_blow", "buzzer_flat", "flatline", "record_scratch"]
+        let injThemeParam = injThemeKeys[min(max(injThemeIdx, 0), injThemeKeys.count - 1)]
+        selectedInjurySoundTheme = injThemeParam
+
+        pushSettingsToBackend(
+            platform: platformParam,
+            leagueId: leagueId,
+            mode: modeParam,
+            speed: speedParam,
+            theme: themeParam,
+            week: weekParam,
+            soundEnabled: isSoundEnabled,
+            soundTheme: soundThemeParam,
+            highlightsEnabled: isHighlightsEnabled,
+            injuriesEnabled: isInjuriesEnabled,
+            injurySoundEnabled: isInjurySoundEnabled,
+            injurySoundTheme: injThemeParam
+        )
     }
 
     @objc func onSoundCheckboxToggled() {
         setSoundEnabled(soundCheckbox?.state == .on)
+        pushCurrentSettingsLive()
     }
 
     @objc func onPreviewSoundClicked() {
@@ -807,14 +941,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     @objc func onHighlightsCheckboxToggled() {
         setHighlightsEnabled(highlightsCheckbox?.state == .on)
+        pushCurrentSettingsLive()
     }
 
     @objc func onInjuriesCheckboxToggled() {
         setInjuriesEnabled(injuriesCheckbox?.state == .on)
+        pushCurrentSettingsLive()
     }
 
     @objc func onInjurySoundCheckboxToggled() {
         setInjurySoundEnabled(injurySoundCheckbox?.state == .on)
+        pushCurrentSettingsLive()
     }
 
     @objc func onPreviewInjurySoundClicked() {
@@ -853,7 +990,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                     self.statusLabel.stringValue = "Live Game Engine Connected (http://localhost:8080)"
                     self.statusLabel.textColor = .systemGreen
                 } else {
-                    self.statusLabel.stringValue = "Backend offline — click 'Launch HUD' to start."
+                    self.statusLabel.stringValue = "Backend offline — click 'Save & Close' to start."
                     self.statusLabel.textColor = .systemOrange
                 }
             }
@@ -877,104 +1014,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     }
 
     @objc func onLaunchClicked() {
-        let isEspn = (platformPopup?.indexOfSelectedItem == 1)
-        let platformParam = isEspn ? "espn" : "sleeper"
-        let inputLeagueId = leagueIdField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let leagueId = inputLeagueId.isEmpty ? (isEspn ? "" : defaultLeagueID) : inputLeagueId
-        selectedScreenIndex = screenPopup.indexOfSelectedItem
-        let screens = NSScreen.screens
-        if selectedScreenIndex < screens.count {
-            selectedScreenName = screens[selectedScreenIndex].localizedName
-        }
-
-        let modeIndex = modePopup.indexOfSelectedItem
-        let modeParam: String
-        switch modeIndex {
-        case 1: modeParam = "ticker"
-        case 2: modeParam = "step"
-        default: modeParam = "auto"
-        }
-
-        let speedIndex = speedPopup.indexOfSelectedItem
-        let speedParam: String
-        switch speedIndex {
-        case 1: speedParam = "fast"
-        case 2: speedParam = "slow"
-        default: speedParam = "normal"
-        }
-
-        let weekIndex = weekPopup.indexOfSelectedItem
-        let weekParam: Int? = (weekIndex > 0) ? weekIndex : nil
-
-        isSoundEnabled = (soundCheckbox?.state == .on)
-        isHighlightsEnabled = (highlightsCheckbox?.state == .on)
-        isInjuriesEnabled = (injuriesCheckbox?.state == .on)
-        isInjurySoundEnabled = (injurySoundCheckbox?.state == .on)
-
-        let themeIndex = soundThemePopup?.indexOfSelectedItem ?? 0
-        let themeKeys = ["fox_horn", "redzone", "td_siren", "brass_fanfare"]
-        let soundThemeParam = themeKeys[min(max(themeIndex, 0), themeKeys.count - 1)]
-        selectedSoundTheme = soundThemeParam
-
-        let injThemeIdx = injurySoundThemePopup?.indexOfSelectedItem ?? 0
-        let injThemeKeys = ["whistle_blow", "buzzer_flat", "flatline", "record_scratch"]
-        selectedInjurySoundTheme = injThemeKeys[min(max(injThemeIdx, 0), injThemeKeys.count - 1)]
-
-        launchBtn.isEnabled = false
-        statusLabel.stringValue = "Verifying backend engine connection..."
-        statusLabel.textColor = .systemBlue
-        writeLogLine("Launch HUD clicked. Target league: \(leagueId), mode: \(modeParam), speed: \(speedParam), week: \(String(describing: weekParam))")
-
-        checkBackendHealth { [weak self] isHealthy in
-            guard let self = self else { return }
-
-            if isHealthy {
-                writeLogLine("Backend is already running and healthy.")
-                self.pushSettingsToBackend(platform: platformParam, leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
-                    DispatchQueue.main.async {
-                        self.setupWindow?.orderOut(nil)
-                        self.launchBtn.isEnabled = true
-                        self.startHUD()
-                    }
-                }
-            } else {
-                DispatchQueue.main.async {
-                    self.statusLabel.stringValue = "Spawning backend engine process..."
-                }
-                self.launchBackendProcess(leagueId: leagueId) { success, errorSnippet in
-                    DispatchQueue.main.async {
-                        self.launchBtn.isEnabled = true
-                        if success {
-                            writeLogLine("Backend launched successfully.")
-                            self.pushSettingsToBackend(platform: platformParam, leagueId: leagueId, mode: modeParam, speed: speedParam, week: weekParam, soundEnabled: self.isSoundEnabled, soundTheme: self.selectedSoundTheme, highlightsEnabled: self.isHighlightsEnabled, injuriesEnabled: self.isInjuriesEnabled, injurySoundEnabled: self.isInjurySoundEnabled, injurySoundTheme: self.selectedInjurySoundTheme) {
-                                DispatchQueue.main.async {
-                                    self.setupWindow?.orderOut(nil)
-                                    self.startHUD()
-                                }
-                            }
-                        } else {
-                            self.statusLabel.stringValue = "Failed to start backend engine."
-                            self.statusLabel.textColor = .systemRed
-                            writeLogLine("Backend failed to start. Error: \(errorSnippet)")
-
-                            let alert = NSAlert()
-                            alert.messageText = "Failed to Start HUD Backend"
-                            alert.informativeText = "The backend server at http://localhost:8080 could not be launched.\n\nError output:\n\(errorSnippet)\n\nCheck /tmp/hud_backend.log or try running `python3 main.py` in your terminal."
-                            alert.alertStyle = .critical
-                            alert.addButton(withTitle: "Open Log File")
-                            alert.addButton(withTitle: "Dismiss")
-                            let res = alert.runModal()
-                            if res == .alertFirstButtonReturn {
-                                self.viewLogs()
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        pushCurrentSettingsLive()
+        setupWindow?.orderOut(nil)
+        startHUD()
+        writeLogLine("Setup window dismissed; HUD remains active on screen.")
     }
 
-    func pushSettingsToBackend(platform: String = "sleeper", leagueId: String, mode: String, speed: String, week: Int?, soundEnabled: Bool, soundTheme: String, highlightsEnabled: Bool = true, injuriesEnabled: Bool = true, injurySoundEnabled: Bool = true, injurySoundTheme: String = "whistle_blow", completion: @escaping () -> Void) {
+    func pushSettingsToBackend(platform: String = "sleeper", leagueId: String, mode: String, speed: String, theme: String = "clean_minimal", week: Int?, soundEnabled: Bool, soundTheme: String, highlightsEnabled: Bool = true, injuriesEnabled: Bool = true, injurySoundEnabled: Bool = true, injurySoundTheme: String = "whistle_blow", completion: (() -> Void)? = nil) {
         let group = DispatchGroup()
 
         // 0. Post target platform and league ID to preload latest manager avatars and league data
@@ -989,7 +1035,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             URLSession.shared.dataTask(with: req) { _, _, _ in group.leave() }.resume()
         }
 
-        // 1. Post display & audio settings
+        // 1. Post display, theme & audio settings
         if let settingsUrl = URL(string: "\(serverURL)/api/settings") {
             var req = URLRequest(url: settingsUrl)
             req.httpMethod = "POST"
@@ -997,6 +1043,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             let body: [String: Any] = [
                 "mode": mode,
                 "speed": speed,
+                "theme": theme,
                 "sound_enabled": soundEnabled,
                 "sound_theme": soundTheme,
                 "highlights_enabled": highlightsEnabled,
@@ -1010,7 +1057,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             URLSession.shared.dataTask(with: req) { _, _, _ in group.leave() }.resume()
         }
 
-        // 2. Post week override if selected
+        // 2. Post dedicated theme setting
+        if let themeUrl = URL(string: "\(serverURL)/api/settings/theme") {
+            var req = URLRequest(url: themeUrl)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = ["theme": theme]
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            group.enter()
+            URLSession.shared.dataTask(with: req) { _, _, _ in group.leave() }.resume()
+        }
+
+        // 3. Post week override if selected
         if let week = week, let weekUrl = URL(string: "\(serverURL)/api/week") {
             var req = URLRequest(url: weekUrl)
             req.httpMethod = "POST"
@@ -1023,7 +1082,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
 
         group.notify(queue: .main) {
-            completion()
+            completion?()
         }
     }
 

@@ -105,7 +105,8 @@ class HUDStateEngine:
             sound_theme="fox_horn",
             injuries_enabled=True,
             injury_sound_enabled=True,
-            injury_sound_theme="whistle_blow"
+            injury_sound_theme="whistle_blow",
+            theme="clean_minimal"
         )
 
         # Simulation & Testing
@@ -191,7 +192,8 @@ class HUDStateEngine:
         sound_theme: Optional[str] = None,
         injuries_enabled: Optional[bool] = None,
         injury_sound_enabled: Optional[bool] = None,
-        injury_sound_theme: Optional[str] = None
+        injury_sound_theme: Optional[str] = None,
+        theme: Optional[str] = None
     ) -> DisplaySettings:
         """Update display mode, animation speed, highlight and injury alert parameters."""
         if mode in ["auto", "ticker", "step", "paged"]:
@@ -225,6 +227,8 @@ class HUDStateEngine:
             self.display_settings.injury_sound_enabled = injury_sound_enabled
         if injury_sound_theme in ["whistle_blow", "buzzer_flat", "flatline", "record_scratch"]:
             self.display_settings.injury_sound_theme = injury_sound_theme
+        if theme in ["clean_minimal", "slate_nordic", "stealth_oled", "classic_glass"]:
+            self.display_settings.theme = theme
 
         logger.info(f"Display settings updated: {self.display_settings.model_dump()}")
         return self.display_settings
@@ -334,7 +338,12 @@ class HUDStateEngine:
             )
 
             diff = round(abs(pts_a - pts_b), 1)
-            leader_id = (idx_a + 1) if pts_a >= pts_b else (idx_b + 1)
+            if pts_a > pts_b:
+                leader_id = idx_a + 1
+            elif pts_b > pts_a:
+                leader_id = idx_b + 1
+            else:
+                leader_id = None
 
             matchup_models.append(MatchupData(
                 matchup_id=m_id,
@@ -947,7 +956,12 @@ class HUDStateEngine:
                         t_b.time_played_pct = round((m_val / t_b.total_minutes) * 100.0, 1) if t_b.total_minutes > 0 else 0.0
 
                     diff = round(abs(t_a.points - t_b.points), 2)
-                    leader = t_a.roster_id if t_a.points >= t_b.points else t_b.roster_id
+                    if t_a.points > t_b.points:
+                        leader = t_a.roster_id
+                    elif t_b.points > t_a.points:
+                        leader = t_b.roster_id
+                    else:
+                        leader = None
                     
                     # Compute dynamic win probability
                     tot = t_a.points + t_b.points

@@ -122,6 +122,7 @@ class DisplaySettings(BaseModel):
     injuries_enabled: bool = True
     injury_sound_enabled: bool = True
     injury_sound_theme: Literal["whistle_blow", "buzzer_flat", "flatline", "record_scratch"] = "whistle_blow"
+    theme: Literal["clean_minimal", "slate_nordic", "stealth_oled", "classic_glass"] = "clean_minimal"
 
 
 class HUDState(BaseModel):

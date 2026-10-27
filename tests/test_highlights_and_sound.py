@@ -41,6 +41,46 @@ class TestHighlightsAndSound(unittest.TestCase):
         # Restore to default
         self.client.post("/api/settings/sound", json={"sound_enabled": True})
 
+    def test_theme_setting_endpoints(self):
+        # Default theme should be clean_minimal
+        self.assertEqual(engine.display_settings.theme, "clean_minimal")
+
+        # Set theme via /api/settings/theme
+        resp1 = self.client.post("/api/settings/theme", json={"theme": "slate_nordic"})
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(resp1.json()["theme"], "slate_nordic")
+        self.assertEqual(engine.display_settings.theme, "slate_nordic")
+
+        # Set theme via general /api/settings
+        resp2 = self.client.post("/api/settings", json={"theme": "stealth_oled"})
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(resp2.json()["settings"]["theme"], "stealth_oled")
+        self.assertEqual(engine.display_settings.theme, "stealth_oled")
+
+        # Test classic_glass
+        resp3 = self.client.post("/api/settings/theme", json={"theme": "classic_glass"})
+        self.assertEqual(resp3.status_code, 200)
+        self.assertEqual(engine.display_settings.theme, "classic_glass")
+
+        # Restore to clean_minimal default
+        self.client.post("/api/settings/theme", json={"theme": "clean_minimal"})
+        self.assertEqual(engine.display_settings.theme, "clean_minimal")
+
+    def test_tied_scores_have_no_leader(self):
+        # In pregame or whenever scores are equal, leader_roster_id must be None
+        mock_state = engine.generate_mock_league(teams_count=6)
+        # All mock league matchups start at 0.0 vs 0.0
+        for m in mock_state.matchups:
+            if m.team_a.points == m.team_b.points:
+                self.assertIsNone(m.leader_roster_id, f"Matchup {m.matchup_id} is tied, leader must be None")
+
+        # Now simulate one team scoring:
+        mock_state.matchups[0].team_a.points = 14.5
+        mock_state.matchups[0].team_b.points = 10.0
+        # If team_a > team_b, team_a is the leader
+        leader_id = mock_state.matchups[0].team_a.roster_id if mock_state.matchups[0].team_a.points > mock_state.matchups[0].team_b.points else mock_state.matchups[0].team_b.roster_id
+        self.assertEqual(leader_id, mock_state.matchups[0].team_a.roster_id)
+
     def test_sound_asset_wav_file(self):
         wav_path = os.path.join(os.path.dirname(__file__), "..", "static", "sounds", "nfl_highlight.wav")
         self.assertTrue(os.path.exists(wav_path), "nfl_highlight.wav must exist in static/sounds/")

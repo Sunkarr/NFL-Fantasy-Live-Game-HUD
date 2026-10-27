@@ -197,7 +197,8 @@ async def set_display_settings(
     sound_theme: Optional[str] = Body(None, embed=True),
     injuries_enabled: Optional[bool] = Body(None, embed=True),
     injury_sound_enabled: Optional[bool] = Body(None, embed=True),
-    injury_sound_theme: Optional[str] = Body(None, embed=True)
+    injury_sound_theme: Optional[str] = Body(None, embed=True),
+    theme: Optional[str] = Body(None, embed=True)
 ):
     """Set matchup display mode, animation speed, highlight and injury alert parameters."""
     settings = engine.set_display_settings(
@@ -210,15 +211,29 @@ async def set_display_settings(
         sound_theme=sound_theme,
         injuries_enabled=injuries_enabled,
         injury_sound_enabled=injury_sound_enabled,
-        injury_sound_theme=injury_sound_theme
+        injury_sound_theme=injury_sound_theme,
+        theme=theme
     )
     if engine.current_state:
         engine.current_state.display_settings = settings
-        await ws_manager.broadcast({
-            "type": "UPDATE_DISPLAY_SETTINGS",
-            "settings": settings.model_dump()
-        })
+    await ws_manager.broadcast({
+        "type": "UPDATE_DISPLAY_SETTINGS",
+        "settings": settings.model_dump()
+    })
     return {"status": "ok", "settings": settings.model_dump()}
+
+
+@app.post("/api/settings/theme")
+async def set_theme_setting(theme: str = Body(..., embed=True)):
+    """Set active visual design theme."""
+    settings = engine.set_display_settings(theme=theme)
+    if engine.current_state:
+        engine.current_state.display_settings = settings
+    await ws_manager.broadcast({
+        "type": "UPDATE_DISPLAY_SETTINGS",
+        "settings": settings.model_dump()
+    })
+    return {"status": "ok", "theme": settings.theme, "settings": settings.model_dump()}
 
 
 @app.post("/api/settings/highlights")

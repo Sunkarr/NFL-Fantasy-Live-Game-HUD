@@ -1,23 +1,33 @@
 /* =============================================================================
-   NFL Fantasy Live Game HUD — Ultra-Slim Top Bar Stylesheet (68px)
-   Broadcast-Grade Live Stream Overlay with Dark Glassmorphism (Flicker-Free)
+   NFL Fantasy Live Game HUD — Clean Studio Overlay Stylesheet
+   Modern, distraction-free, rectangular broadcast overlay (100% solid, zero Vista glow)
    ============================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
+
 :root {
-  --hud-height: 68px;
-  --bg-hud: rgba(10, 14, 23, 0.88);
-  --bg-hud-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(10, 14, 23, 0.84) 100%);
-  --bg-card: rgba(255, 255, 255, 0.06);
-  --bg-card-hover: rgba(255, 255, 255, 0.10);
-  --border-subtle: rgba(255, 255, 255, 0.12);
-  --border-highlight: rgba(255, 255, 255, 0.25);
+  --hud-height: 64px;
+  --bg-hud: #0b0e14;
+  --bg-hud-gradient: none;
+  --hud-backdrop-filter: none;
+  --bg-card: #141a24;
+  --bg-card-hover: #1b2330;
+  --border-subtle: #232d3f;
+  --border-highlight: #334155;
+  --card-radius: 4px; /* Crisp, modern rectangular cards */
+  --card-shadow: none;
+  --hud-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
   
   --color-text-main: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-text-dim: #64748b;
   
-  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --score-weight: 600;
+  --avatar-border-width: 1.5px;
+  --score-bar-height: 2px;
+  --minutes-bar-height: 2px;
 }
 
 * {
@@ -39,7 +49,7 @@ html, body {
 }
 
 /* ==========================================================================
-   Top Bar Container (Full Screen Width, 68px Fixed Height, Translucent Glass)
+   Top Bar Container (Full Screen Width, Adaptive Height, Modern Blur)
    ========================================================================== */
 #hud-top-bar {
   position: fixed;
@@ -48,9 +58,12 @@ html, body {
   right: 0;
   width: 100vw;
   height: var(--hud-height);
-  background: var(--bg-hud-gradient);
+  background: var(--bg-hud-gradient, var(--bg-hud));
+  background-color: var(--bg-hud);
+  backdrop-filter: var(--hud-backdrop-filter);
+  -webkit-backdrop-filter: var(--hud-backdrop-filter);
   border-bottom: 1px solid var(--border-subtle);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--hud-shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -61,7 +74,7 @@ html, body {
   transform: translateZ(0);
   isolation: isolate;
   contain: layout paint;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease-in-out;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease-in-out, background-color 0.25s ease, border-color 0.25s ease;
 }
 
 /* Hover Transparency: Fades HUD to 0.08 opacity when hovering over top bar so browser tabs/video underneath are visible */
@@ -79,22 +92,23 @@ html, body {
 
 .week-tag {
   font-size: clamp(10px, 0.8vw, 12px);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--color-text-muted);
-  letter-spacing: 0.06em;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 6px clamp(8px, 0.8vw, 12px);
-  border-radius: 6px;
+  letter-spacing: 0.08em;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 5px clamp(8px, 0.8vw, 11px);
+  border-radius: var(--card-radius);
   white-space: nowrap;
+  text-transform: uppercase;
 }
 
 /* Sound Toggle Button */
 .sound-toggle-btn {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   color: var(--color-text-main);
-  border-radius: 6px;
+  border-radius: var(--card-radius);
   height: 28px;
   width: 32px;
   display: inline-flex;
@@ -108,26 +122,25 @@ html, body {
 }
 
 .sound-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.38);
-  transform: scale(1.08);
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  background: var(--bg-card-hover);
+  border-color: var(--border-highlight);
+  transform: scale(1.05);
 }
 
 .sound-toggle-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.94);
 }
 
 .sound-toggle-btn.is-muted {
-  opacity: 0.65;
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.45);
+  opacity: 0.75;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .sound-toggle-btn.is-muted:hover {
   opacity: 1;
   border-color: rgba(239, 68, 68, 0.7);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
 }
 
 /* ==========================================================================
@@ -193,16 +206,16 @@ html, body {
 /* Matchup Card Structure */
 .matchup-card {
   flex: 1;
-  height: 52px;
+  height: 50px;
   min-width: 0;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 5px clamp(8px, 0.8vw, 12px) 5px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 4px clamp(8px, 0.8vw, 12px) 4px;
+  box-shadow: var(--card-shadow);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -236,19 +249,20 @@ html, body {
   margin-right: 2px;
 }
 
-/* Team Avatar with Vibrant Glow Border */
+/* Team Avatar with Clean Border */
 .team-avatar {
   width: clamp(24px, 1.8vw, 28px);
   height: clamp(24px, 1.8vw, 28px);
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-subtle);
+  border: 1.5px solid var(--team-color, #38bdf8);
+  box-shadow: none;
   flex-shrink: 0;
-  background: #1e293b;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  background: #141a24;
+  transition: border-color 0.25s ease;
 }
 
-/* Red Zone Alert Indicators (Glowing dots in manager color or 3+ badge) */
+/* Red Zone Alert Indicators (Subtle dots in manager color or 3+ badge) */
 .rz-alert-container {
   display: inline-flex;
   align-items: center;
@@ -266,18 +280,19 @@ html, body {
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
-  animation: rz-dot-pulse 1.35s ease-in-out infinite;
+  animation: rz-dot-pulse-clean 1.8s ease-in-out infinite;
+  box-shadow: none;
 }
 
 .rz-badge-more {
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
   font-size: 8.5px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
   padding: 2px 5px;
   border-radius: 4px;
   letter-spacing: -0.02em;
-  animation: rz-dot-pulse 1.35s ease-in-out infinite;
+  animation: rz-dot-pulse-clean 1.8s ease-in-out infinite;
 }
 
 /* Center Scores */
@@ -291,16 +306,18 @@ html, body {
 }
 
 .team-score {
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
   font-size: clamp(12px, 1vw, 15px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #ffffff;
-  transition: transform 0.2s ease, color 0.2s ease;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: #e2e8f0;
+  transition: color 0.2s ease;
 }
 
 .team-score.leading {
   color: #38bdf8;
+  font-weight: 700;
 }
 
 .score-flash {
@@ -308,10 +325,10 @@ html, body {
 }
 
 .vs-divider {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-dim);
-  padding: 0 1px;
+  color: #64748b;
+  padding: 0 2px;
 }
 
 /* ==========================================================================
@@ -323,7 +340,7 @@ html, body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2.5px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -334,12 +351,12 @@ html, body {
 
 /* 1. Score Bar (Main visual focus) */
 .matchup-bar.score-bar {
-  height: 3.5px;
+  height: var(--score-bar-height);
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   display: flex;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--card-shadow);
 }
 
 .score-bar-left {
@@ -356,8 +373,8 @@ html, body {
 
 /* 2. Minutes Played Bar (Bright silver-gray bar, clearly visible on beamers/projectors) */
 .matchup-bar.minutes-bar {
-  height: 2.5px;
-  background: rgba(255, 255, 255, 0.09);
+  height: var(--minutes-bar-height);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 1.5px;
   overflow: hidden;
   box-shadow: none;
@@ -410,7 +427,7 @@ html, body {
    ========================================================================== */
 .highlight-queue-container {
   width: clamp(260px, 24vw, 360px);
-  height: 52px;
+  height: 50px;
   flex-shrink: 0;
   position: relative;
   overflow: visible;
@@ -421,7 +438,7 @@ html, body {
   height: 100%;
   background: var(--bg-card) !important;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--card-radius); /* 4px crisp rectangular */
   display: flex;
   align-items: center;
   padding: 0 clamp(8px, 0.8vw, 14px);
@@ -429,49 +446,33 @@ html, body {
   position: absolute;
   top: 0;
   left: 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: none;
+  font-family: var(--font-family);
+  transition: border-color 0.25s ease;
 }
 
 .spotlight-pill.is-bench {
   opacity: 0.95;
 }
 
-/* Prominent Live Highlight Entrance & Jiggle Animation */
+/* Distraction-free clean slide-in entrance */
 .spotlight-pill.live-highlight {
-  animation: highlight-entrance-jiggle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both,
-             highlight-glow-flare 1.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: clean-highlight-slide-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   border-width: 1.5px !important;
   background: var(--bg-card) !important;
   overflow: hidden;
   z-index: 10;
   position: absolute;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.25s ease, box-shadow 0.35s ease;
+  box-shadow: none;
+  transition: border-color 0.25s ease;
 }
 
 .spotlight-pill.live-highlight.jiggling {
-  animation: highlight-jiggle-burst 0.75s cubic-bezier(0.22, 1, 0.36, 1) both,
-             highlight-glow-flare 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: clean-highlight-pulse 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Metallic Light Sheen Sweep Across the Highlight Pill */
 .spotlight-pill.live-highlight::after {
-  content: "";
-  position: absolute;
-  top: -60%;
-  left: -100%;
-  width: 40%;
-  height: 220%;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  transform: rotate(25deg);
-  pointer-events: none;
-  animation: highlight-sheen-sweep 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+  display: none !important;
 }
 
 .spotlight-avatar-wrap {
@@ -559,9 +560,10 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 700;
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.22);
   border: 1px solid rgba(245, 158, 11, 0.55);
@@ -572,7 +574,6 @@ html, body {
   margin-right: 6px;
   line-height: 1;
   box-sizing: border-box;
-  text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
   letter-spacing: 0;
   flex-shrink: 0;
 }
@@ -583,8 +584,9 @@ html, body {
 }
 
 .spotlight-player-name {
+  font-family: var(--font-family);
   font-size: clamp(11px, 0.9vw, 13px);
-  font-weight: 800;
+  font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
@@ -603,8 +605,10 @@ html, body {
 
 /* Queue Count Indicator (Shows how many more highlights are pending) */
 .spotlight-queue-badge {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
   font-size: clamp(8px, 0.65vw, 9.5px);
-  font-weight: 800;
+  font-weight: 700;
   color: #f1f5f9;
   letter-spacing: 0.03em;
   background: rgba(255, 255, 255, 0.12);
@@ -626,10 +630,11 @@ html, body {
 }
 
 .spotlight-pts-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
   font-size: clamp(12px, 1vw, 15px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -648,10 +653,10 @@ html, body {
 .spotlight-pill.live-highlight .spotlight-pts-value {
   animation: score-pts-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   padding: 2px 7px;
-  border-radius: 6px;
-  border: 1.5px solid var(--hl-accent-color, #00f0ff);
+  border-radius: 4px;
+  border: 1px solid var(--hl-accent-color, #00f0ff);
   background: var(--hl-accent-bg, rgba(0, 240, 255, 0.16));
-  box-shadow: 0 0 12px var(--hl-accent-glow, rgba(0, 240, 255, 0.4));
+  box-shadow: none;
   color: #ffffff !important;
 }
 
@@ -665,8 +670,9 @@ html, body {
 }
 
 .pts-sub {
+  font-family: var(--font-family);
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--color-text-dim);
   line-height: 1;
   display: inline-flex;
@@ -723,6 +729,34 @@ html, body {
     opacity: 1;
     filter: brightness(1.3);
   }
+}
+
+@keyframes rz-dot-pulse-clean {
+  0%, 100% {
+    opacity: 0.65;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+}
+
+@keyframes clean-highlight-slide-in {
+  0% {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes clean-highlight-pulse {
+  0% { transform: scale(0.97); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 
 @keyframes highlight-entrance-jiggle {
@@ -851,13 +885,13 @@ html, body {
 }
 
 .injury-status-badge {
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
   font-size: clamp(9.5px, 0.8vw, 11px);
-  font-weight: 900;
+  font-weight: 700;
   padding: 2px 7px;
-  border-radius: 5px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
