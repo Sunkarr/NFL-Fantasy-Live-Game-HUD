@@ -828,7 +828,6 @@ class HUDStateEngine:
                             if self.is_bootstrapped and not is_initial and live_inj_status != "Healthy":
                                 if self.display_settings.injuries_enabled:
                                     logger.info(f"🚑 INJURY DETECTED! {p_info['name']} ({roster_slot}) -> {live_inj_status} for {r_meta['manager_name']}")
-                                    inj_accent = "#ef4444" if live_inj_status.lower() in ["out", "ir", "injured reserve"] else "#f59e0b"
                                     inj_event = InjuryAlertEvent(
                                         id=str(uuid.uuid4())[:8],
                                         player_id=str(pid),
@@ -840,7 +839,7 @@ class HUDStateEngine:
                                         injury_status=live_inj_status,
                                         injury_detail=live_inj_detail,
                                         headshot_url=p_info["headshot_url"],
-                                        color_accent=inj_accent,
+                                        color_accent=r_meta["color_accent"],
                                         is_free_agent=False,
                                         duration_seconds=duration_sec,
                                         is_user_team=r_meta["is_user_team"],
@@ -1402,27 +1401,44 @@ class HUDStateEngine:
                         break
 
         is_fa = (fantasy_team_name.lower() in ["free agent", "unowned", "none", "fa"])
+        color = None
         if fantasy_team_name.lower() in ["auto", "detect", ""] or not fantasy_team_name:
             if detected_roster:
                 fantasy_team_name = detected_roster["team_name"]
                 manager_name = detected_roster["manager_name"]
+                color = detected_roster["color_accent"]
                 is_fa = False
             else:
                 fantasy_team_name = "Free Agent"
                 manager_name = "Free Agent"
+                color = COLOR_FREE_AGENT
                 is_fa = True
         elif is_fa:
+            color = COLOR_FREE_AGENT
             manager_name = "Free Agent"
             fantasy_team_name = "Free Agent"
         else:
+            color = None
             manager_name = fantasy_team_name
             if hasattr(self, "rosters_map") and self.rosters_map:
                 for rid, r in self.rosters_map.items():
                     if (r["team_name"].lower() == fantasy_team_name.lower() or 
                         r["manager_name"].lower() == fantasy_team_name.lower()):
+                        color = r["color_accent"]
                         fantasy_team_name = r["team_name"]
                         manager_name = r["manager_name"]
                         break
+            if not color:
+                for key, val in MANAGER_COLORS.items():
+                    if key.lower() == fantasy_team_name.lower() or key.lower() == manager_name.lower():
+                        color = val
+                        break
+            if not color and detected_roster:
+                color = detected_roster["color_accent"]
+                fantasy_team_name = detected_roster["team_name"]
+                manager_name = detected_roster["manager_name"]
+            if not color:
+                color = "#00f0ff"
 
         if is_starter is None:
             if detected_roster and "is_starter" in detected_roster:
@@ -1437,7 +1453,6 @@ class HUDStateEngine:
             points = float(self.prev_player_points.get(str(resolved_pid), 0.0))
 
         duration_sec = self.get_speed_seconds()
-        accent = "#ef4444" if injury_status.lower() in ["out", "ir", "injured reserve"] else "#f59e0b"
 
         inj = InjuryAlertEvent(
             id=str(uuid.uuid4())[:8],
@@ -1450,7 +1465,7 @@ class HUDStateEngine:
             injury_status=injury_status,
             injury_detail=injury_detail or f"{injury_status} during game",
             headshot_url=resolved_headshot,
-            color_accent=accent,
+            color_accent=color,
             is_free_agent=is_fa,
             duration_seconds=duration_sec,
             is_user_team=(fantasy_team_name.lower() == self.user_team_name),
