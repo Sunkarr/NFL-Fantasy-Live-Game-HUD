@@ -1098,7 +1098,7 @@ class NFLGameHUD {
     const benchPrefix = this.getBenchPrefix(inj);
     const shortName = this.formatPlayerDisplayName(inj.player_name, inj.position, inj.nfl_team);
     const mgrName = inj.manager_name || inj.fantasy_team_name || 'ROSTER';
-    const topTagText = `🚑 ${displayStatus} · ${this.escapeHtml(mgrName.toUpperCase())}`;
+    const topTagText = this.escapeHtml(mgrName.toUpperCase());
 
     this.dom.highlightContainer.innerHTML = `
       <div class="spotlight-pill live-injury" style="border-color: ${ownerColor} !important; --hl-glow-color: ${ownerColor};">
@@ -1108,7 +1108,7 @@ class NFLGameHUD {
         </div>
 
         <div class="spotlight-info">
-          <span class="spotlight-top-tag" style="color: ${isOutOrIR ? '#fca5a5' : '#fef3c7'} !important;">
+          <span class="spotlight-top-tag" style="color: #ffffff !important; font-weight: 700;">
             ${topTagText}
           </span>
           <span class="spotlight-player-name">${this.escapeHtml(shortName)}</span>

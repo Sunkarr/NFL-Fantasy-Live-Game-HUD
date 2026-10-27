@@ -873,12 +873,13 @@ html, body {
 }
 
 .spotlight-pill.live-injury .spotlight-top-tag {
-  color: #fca5a5 !important;
-  font-weight: 900;
-  text-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+  color: #ffffff !important;
+  font-weight: 700;
+  text-shadow: none !important;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  opacity: 0.9;
 }
 
 .spotlight-pill.live-injury .spotlight-player-name {
