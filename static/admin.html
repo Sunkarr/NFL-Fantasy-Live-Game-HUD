@@ -287,6 +287,7 @@
     }
 
     .mini-teams-row {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -298,6 +299,11 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      z-index: 1;
+    }
+
+    .mini-team-side.right {
+      margin-left: auto;
     }
 
     .mini-avatar {
@@ -323,9 +329,16 @@
     }
 
     .mini-scores {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: flex;
       align-items: center;
       gap: 6px;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 2;
     }
 
     .mini-score {
@@ -659,8 +672,9 @@
 
     .preview-score-badge {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+      flex-direction: row;
+      align-items: center;
+      gap: 5px;
       flex-shrink: 0;
     }
 
@@ -686,16 +700,16 @@
       justify-content: center;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-variant-numeric: tabular-nums;
-      font-size: 9px;
-      font-weight: 700;
+      font-size: 9.5px;
+      font-weight: 800;
       color: #fbbf24;
       background: rgba(245, 158, 11, 0.22);
-      border: 1px solid rgba(245, 158, 11, 0.55);
+      border: 1px solid rgba(245, 158, 11, 0.65);
       border-radius: 3px;
-      height: 14px;
-      min-width: 14px;
-      padding: 0 3px;
-      margin-right: 6px;
+      height: 15px;
+      min-width: 15px;
+      padding: 0 3.5px;
+      margin: 0;
       line-height: 1;
       box-sizing: border-box;
       letter-spacing: 0;
@@ -1473,7 +1487,7 @@
         showToast('🔴 Red Zone: 2 Dots auf Team B');
       } else if (miniRzState === 3 && slotLeft && slotRight) {
         slotLeft.innerHTML = '<span class="mini-rz-dot" style="background: #00f0ff;"></span>';
-        slotRight.innerHTML = '<span style="font-size: 8px; font-weight: 800; background: #ff00aa; color: #fff; padding: 1px 3px; border-radius: 2px;">3+</span>';
+        slotRight.innerHTML = '<span style="font-size: 8px; font-weight: 800; background: #ff00aa; color: #fff; padding: 1px 3px; border-radius: 2px; position: relative; top: -1.5px; display: inline-flex; align-items: center;">3+</span>';
         showToast('🔴 Red Zone: Dueling Starters (1 Dot vs 3+)');
       } else {
         showToast('🔴 Red Zone: Keine Spieler in der Red Zone');
@@ -1847,8 +1861,9 @@
           </div>
 
           <div class="preview-score-badge">
+            ${benchPrefix}
             <span class="preview-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
-              ${benchPrefix}<span>+${deltaPoints.toFixed(1)}</span><span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
+              <span>+${deltaPoints.toFixed(1)}</span><span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
             </span>
           </div>
 

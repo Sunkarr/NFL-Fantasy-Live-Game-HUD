@@ -973,8 +973,9 @@ class NFLGameHUD {
         </div>
 
         <div class="spotlight-score-badge">
+          ${this.getBenchPrefix(hl)}
           <span class="spotlight-pts-value" style="color: #ffffff !important; border: 1px solid ${ownerColor} !important; background: ${this.hexToRgba(ownerColor, 0.25)} !important; font-weight: 600;">
-            ${this.getBenchPrefix(hl)}<span class="pts-number">+${hl.delta_points.toFixed(1)}</span><span class="pts-sub" style="color: #ffffff !important; opacity: 0.9;">FPTS</span>
+            <span class="pts-number">+${hl.delta_points.toFixed(1)}</span><span class="pts-sub" style="color: #ffffff !important; opacity: 0.9;">FPTS</span>
           </span>
         </div>
 
@@ -1015,8 +1016,9 @@ class NFLGameHUD {
         <div class="spotlight-queue-slot"></div>
 
         <div class="spotlight-score-badge">
+          ${this.getBenchPrefix(spotlight)}
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 600;">
-            ${this.getBenchPrefix(spotlight)}<span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
+            <span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
           </span>
         </div>
       </div>
@@ -1119,8 +1121,9 @@ class NFLGameHUD {
         </div>
 
         <div class="spotlight-score-badge">
+          ${benchPrefix}
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 600;">
-            ${benchPrefix}<span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
+            <span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
           </span>
         </div>
 

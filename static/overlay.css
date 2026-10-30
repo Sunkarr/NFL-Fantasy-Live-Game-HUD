@@ -226,6 +226,7 @@ html, body {
 
 /* Teams & Scores Row */
 .matchup-teams-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -239,14 +240,23 @@ html, body {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  z-index: 1;
+}
+
+.team-side.right {
+  margin-left: auto;
 }
 
 .team-side.left .rz-slot-a {
   margin-left: 2px;
+  display: flex;
+  align-items: center;
 }
 
 .team-side.right .rz-slot-b {
   margin-right: 2px;
+  display: flex;
+  align-items: center;
 }
 
 /* Team Avatar with Clean Border */
@@ -285,24 +295,34 @@ html, body {
 }
 
 .rz-badge-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-family);
   font-size: 8.5px;
   font-weight: 800;
   line-height: 1;
-  padding: 2px 5px;
+  padding: 1.5px 5px 2px 5px;
   border-radius: 4px;
   letter-spacing: -0.02em;
+  position: relative;
+  top: -1.5px;
   animation: rz-dot-pulse-clean 1.8s ease-in-out infinite;
 }
 
-/* Center Scores */
+/* Center Scores - anchored dead center so Red Zone dots never shift fantasy points */
 .matchup-center-scores {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: clamp(4px, 0.5vw, 8px);
-  flex: 1;
-  min-width: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
 }
 
 .team-score {
@@ -562,16 +582,16 @@ html, body {
   justify-content: center;
   font-family: var(--font-family);
   font-variant-numeric: tabular-nums;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 9.5px;
+  font-weight: 800;
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.22);
-  border: 1px solid rgba(245, 158, 11, 0.55);
+  border: 1px solid rgba(245, 158, 11, 0.65);
   border-radius: 3px;
-  height: 14px;
-  min-width: 14px;
-  padding: 0 3px;
-  margin-right: 6px;
+  height: 15px;
+  min-width: 15px;
+  padding: 0 3.5px;
+  margin: 0;
   line-height: 1;
   box-sizing: border-box;
   letter-spacing: 0;
@@ -622,9 +642,10 @@ html, body {
 
 .spotlight-score-badge {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
   flex-shrink: 0;
   min-width: 48px;
 }
