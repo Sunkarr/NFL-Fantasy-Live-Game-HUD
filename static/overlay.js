@@ -17,6 +17,9 @@ class NFLGameHUD {
     this.reconnectDelay = 2000;
     
     this.state = null;
+    this.alertQueue = []; // Unified FIFO: [{ type: 'highlight'|'injury', item }]
+    this.currentAlert = null;
+    this.alertTimer = null;
     this.highlightQueue = [];
     this.currentHighlight = null;
     this.highlightTimer = null;
@@ -330,7 +333,7 @@ class NFLGameHUD {
     }
 
     // 4. Highlight & Position MVP Rotation
-    if (!this.currentHighlight) {
+    if (!this.currentAlert && !this.currentHighlight && !this.currentInjury) {
       this.startIdleSpotlightCycle();
     }
   }
@@ -710,7 +713,7 @@ class NFLGameHUD {
   // Position MVP Cycle & Prominent Highlights Engine
   // =========================================================================
   startIdleSpotlightCycle(forceImmediate = false) {
-    if (this.currentHighlight || this.currentInjury) return;
+    if (this.currentAlert || this.currentHighlight || this.currentInjury) return;
 
     const activeMVPs = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
 
@@ -722,11 +725,8 @@ class NFLGameHUD {
             <div class="spotlight-avatar-wrap" style="display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(255,255,255,0.06); border-radius: 50%;">
               🏈
             </div>
-            <div class="spotlight-info">
-              <span class="spotlight-top-tag" style="color: var(--color-text-dim); font-weight: 700;">PREGAME</span>
-              <span class="spotlight-player-name" style="color: #cbd5e1; font-size: 13px; font-weight: 600;">Awaiting Kickoff</span>
-            </div>
-            <div class="spotlight-score-badge">
+            <span class="spotlight-player-name" style="color: #cbd5e1; font-size: 13px; font-weight: 600;">Awaiting Kickoff</span>
+            <div class="spotlight-right-items">
               <span class="spotlight-pts-value" style="color: var(--color-text-dim); font-weight: 600;">
                 <span class="pts-number">0.0</span><span class="pts-sub" style="font-size: 9px; color: var(--color-text-dim); font-weight: 600;">FPTS</span>
               </span>
@@ -751,7 +751,7 @@ class NFLGameHUD {
 
     this.idleTimer = setInterval(() => {
       const currentList = (this.idleSpotlights || []).filter(p => p && Math.round((Number(p.points) || 0) * 100) !== 0);
-      if (!this.currentHighlight && !this.currentInjury && currentList.length > 0) {
+      if (!this.currentAlert && !this.currentHighlight && !this.currentInjury && currentList.length > 0) {
         this.currentSpotlightIndex = (this.currentSpotlightIndex + 1) % currentList.length;
         this.renderIdleSpotlight(currentList[this.currentSpotlightIndex]);
       }
@@ -760,7 +760,7 @@ class NFLGameHUD {
 
   restartIdleTimer() {
     this.stopIdleSpotlightCycle();
-    if (!this.currentHighlight && !this.currentInjury) {
+    if (!this.currentAlert && !this.currentHighlight && !this.currentInjury) {
       this.startIdleSpotlightCycle();
     }
   }
@@ -774,15 +774,16 @@ class NFLGameHUD {
 
   enqueueHighlight(highlight) {
     if (!this.highlightsEnabled || !highlight) return;
-    this.highlightQueue.push(highlight);
+    this.alertQueue.push({ type: 'highlight', item: highlight });
+    this.highlightQueue = this.alertQueue.filter(a => a.type === 'highlight').map(a => a.item);
     
-    if (!this.currentHighlight && !this.currentInjury) {
+    if (!this.currentAlert && !this.currentHighlight && !this.currentInjury) {
       this.stopIdleSpotlightCycle();
-      this.playNextHighlight();
+      this.playNextAlert();
     } else {
       this.updateQueueBadge();
       
-      const activeCard = this.dom.highlightContainer.querySelector('.spotlight-pill.live-highlight');
+      const activeCard = this.dom.highlightContainer ? this.dom.highlightContainer.querySelector('.spotlight-pill') : null;
       if (activeCard) {
         activeCard.classList.remove('jiggling');
         void activeCard.offsetWidth;
@@ -793,7 +794,7 @@ class NFLGameHUD {
 
   updateQueueBadge() {
     const queueBadge = document.getElementById('spotlight-queue-badge');
-    const remaining = this.highlightQueue.length;
+    const remaining = this.alertQueue ? this.alertQueue.length : (this.highlightQueue.length + this.injuryQueue.length);
     if (queueBadge) {
       if (remaining > 0) {
         queueBadge.textContent = `+${remaining} IN QUEUE`;
@@ -804,41 +805,54 @@ class NFLGameHUD {
     }
   }
 
-  playNextHighlight() {
-    if (!this.highlightsEnabled) {
-      this.highlightQueue = [];
+  playNextAlert() {
+    this.alertQueue = (this.alertQueue || []).filter(entry => {
+      if (entry.type === 'highlight') return this.highlightsEnabled;
+      if (entry.type === 'injury') return this.injuriesEnabled;
+      return true;
+    });
+    this.highlightQueue = this.alertQueue.filter(a => a.type === 'highlight').map(a => a.item);
+    this.injuryQueue = this.alertQueue.filter(a => a.type === 'injury').map(a => a.item);
+
+    if (this.alertQueue.length === 0) {
+      this.currentAlert = null;
       this.currentHighlight = null;
-      if (this.injuryQueue.length > 0) {
-        this.playNextInjury();
-      } else if (!this.currentInjury) {
-        this.startIdleSpotlightCycle(true);
-      }
-      return;
-    }
-    if (this.highlightQueue.length === 0) {
-      this.currentHighlight = null;
-      if (this.injuryQueue.length > 0) {
-        this.playNextInjury();
-      } else if (!this.currentInjury) {
-        this.startIdleSpotlightCycle(true);
-      }
+      this.currentInjury = null;
+      this.startIdleSpotlightCycle(true);
       return;
     }
 
-    const hl = this.highlightQueue.shift();
-    this.currentHighlight = hl;
-    
-    this.playNFLFanfareSound();
+    const next = this.alertQueue.shift();
+    this.currentAlert = next;
+    this.highlightQueue = this.alertQueue.filter(a => a.type === 'highlight').map(a => a.item);
+    this.injuryQueue = this.alertQueue.filter(a => a.type === 'injury').map(a => a.item);
 
     const durationSec = this.getSpeedDurationSeconds();
-    this.renderHighlightPill(hl, durationSec);
-
     const durationMs = durationSec * 1000;
+
+    if (this.alertTimer) clearTimeout(this.alertTimer);
     if (this.highlightTimer) clearTimeout(this.highlightTimer);
-    
-    this.highlightTimer = setTimeout(() => {
-      this.playNextHighlight();
+    if (this.injuryTimer) clearTimeout(this.injuryTimer);
+
+    if (next.type === 'highlight') {
+      this.currentHighlight = next.item;
+      this.currentInjury = null;
+      this.playNFLFanfareSound();
+      this.renderHighlightPill(next.item, durationSec);
+    } else if (next.type === 'injury') {
+      this.currentInjury = next.item;
+      this.currentHighlight = null;
+      this.playInjurySound();
+      this.renderInjuryPill(next.item, durationSec);
+    }
+
+    this.alertTimer = setTimeout(() => {
+      this.playNextAlert();
     }, durationMs);
+  }
+
+  playNextHighlight() {
+    this.playNextAlert();
   }
 
   getBenchPrefix(player) {
@@ -949,10 +963,8 @@ class NFLGameHUD {
     if (!this.dom.highlightContainer) return;
 
     const ownerColor = this.getOwnerColor(hl);
-    const remaining = this.highlightQueue.length;
+    const remaining = this.alertQueue ? this.alertQueue.length : this.highlightQueue.length;
     const showQueue = remaining > 0 ? '' : 'display: none;';
-
-    const header = this.getHighlightHeaderInfo(hl);
 
     this.dom.highlightContainer.innerHTML = `
       <div class="spotlight-pill live-highlight" style="border-color: ${ownerColor} !important; --hl-glow-color: ${ownerColor};">
@@ -961,18 +973,10 @@ class NFLGameHUD {
           <span class="spotlight-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${ownerColor}; color: #ffffff; font-weight: 900;">${hl.position}</span>
         </div>
 
-        <div class="spotlight-info">
-          <span class="spotlight-top-tag" style="color: #ffffff; font-weight: 700;">
-            ${header.emoji} ${header.label}
-          </span>
-          <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(hl.player_name, hl.position, hl.nfl_team))}</span>
-        </div>
+        <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(hl.player_name, hl.position, hl.nfl_team))}</span>
 
-        <div class="spotlight-queue-slot">
+        <div class="spotlight-right-items">
           <span class="spotlight-queue-badge" id="spotlight-queue-badge" style="${showQueue}">+${remaining} IN QUEUE</span>
-        </div>
-
-        <div class="spotlight-score-badge">
           ${this.getBenchPrefix(hl)}
           <span class="spotlight-pts-value" style="color: #ffffff !important; border: 1px solid ${ownerColor} !important; background: ${this.hexToRgba(ownerColor, 0.25)} !important; font-weight: 600;">
             <span class="pts-number">+${hl.delta_points.toFixed(1)}</span><span class="pts-sub" style="color: #ffffff !important; opacity: 0.9;">FPTS</span>
@@ -993,11 +997,9 @@ class NFLGameHUD {
     const isFA = spotlight.is_free_agent;
     const accentColor = spotlight.color_accent || (isFA ? '#94a3b8' : '#00f0ff');
     
-    const isLeader = spotlight.rank === 1;
-    const leaderCrown = isLeader ? '👑 ' : '';
-    const rankPart = spotlight.rank ? `#${spotlight.rank} ` : '';
-    const mgrName = spotlight.manager_name || spotlight.fantasy_team_name || (isFA ? 'FREE AGENT' : 'ROSTER');
-    const topTagText = `${leaderCrown}${rankPart}${spotlight.position} · ${this.escapeHtml(mgrName.toUpperCase())}`;
+    const pos = (spotlight.position || 'NFL').toUpperCase();
+    const rankNum = spotlight.rank || 1;
+    const rankText = `${pos} #${rankNum}`;
 
     this.dom.highlightContainer.innerHTML = `
       <div class="spotlight-pill mvp-pill ${isFA ? 'is-free-agent' : ''}" style="border-color: ${this.hexToRgba(accentColor, 0.35)}; --hl-glow-color: ${this.hexToRgba(accentColor, 0.25)}; animation: pill-fade 0.35s cubic-bezier(0.16, 1, 0.3, 1);">
@@ -1006,17 +1008,11 @@ class NFLGameHUD {
           <span class="spotlight-pos-badge" style="border-color: ${accentColor}; color: #ffffff; font-weight: 700; background: rgba(0, 0, 0, 0.85);">${spotlight.position}</span>
         </div>
 
-        <div class="spotlight-info">
-          <span class="spotlight-top-tag" style="color: ${accentColor}; font-weight: 700;">
-            ${topTagText}
-          </span>
-          <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(spotlight.player_name, spotlight.position, spotlight.nfl_team))}</span>
-        </div>
+        <span class="spotlight-player-name">${this.escapeHtml(this.formatPlayerDisplayName(spotlight.player_name, spotlight.position, spotlight.nfl_team))}</span>
 
-        <div class="spotlight-queue-slot"></div>
-
-        <div class="spotlight-score-badge">
+        <div class="spotlight-right-items">
           ${this.getBenchPrefix(spotlight)}
+          <span class="spotlight-rank-badge">${rankText}</span>
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 600;">
             <span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
           </span>
@@ -1031,76 +1027,55 @@ class NFLGameHUD {
   // =========================================================================
   enqueueInjury(injury) {
     if (!this.injuriesEnabled || !injury) return;
-    this.injuryQueue.push(injury);
+    this.alertQueue.push({ type: 'injury', item: injury });
+    this.injuryQueue = this.alertQueue.filter(a => a.type === 'injury').map(a => a.item);
 
-    if (!this.currentHighlight && !this.currentInjury) {
+    if (!this.currentAlert && !this.currentHighlight && !this.currentInjury) {
       this.stopIdleSpotlightCycle();
-      this.playNextInjury();
+      this.playNextAlert();
+    } else {
+      this.updateQueueBadge();
+
+      const activeCard = this.dom.highlightContainer ? this.dom.highlightContainer.querySelector('.spotlight-pill') : null;
+      if (activeCard) {
+        activeCard.classList.remove('jiggling');
+        void activeCard.offsetWidth;
+        activeCard.classList.add('jiggling');
+      }
     }
   }
 
   playNextInjury() {
-    if (!this.injuriesEnabled) {
-      this.injuryQueue = [];
-      this.currentInjury = null;
-      if (this.highlightQueue.length > 0) {
-        this.playNextHighlight();
-      } else if (!this.currentHighlight) {
-        this.startIdleSpotlightCycle(true);
-      }
-      return;
-    }
-    if (this.injuryQueue.length === 0) {
-      this.currentInjury = null;
-      if (this.highlightQueue.length > 0) {
-        this.playNextHighlight();
-      } else if (!this.currentHighlight) {
-        this.startIdleSpotlightCycle(true);
-      }
-      return;
-    }
-
-    const inj = this.injuryQueue.shift();
-    this.currentInjury = inj;
-
-    this.playInjurySound();
-
-    const durationSec = this.getSpeedDurationSeconds();
-    this.renderInjuryPill(inj, durationSec);
-
-    const durationMs = durationSec * 1000;
-    if (this.injuryTimer) clearTimeout(this.injuryTimer);
-
-    this.injuryTimer = setTimeout(() => {
-      this.playNextInjury();
-    }, durationMs);
+    this.playNextAlert();
   }
 
   renderInjuryPill(inj, durationSec = 8) {
     if (!this.dom.highlightContainer || !inj) return;
 
-    const rawStatus = (inj.injury_status || 'OUT').toUpperCase();
-    const isOutOrIR = ['OUT', 'IR', 'INJURED RESERVE'].includes(rawStatus);
-    const statusClass = isOutOrIR ? 'status-out' : 'status-ques';
+    const rawStatus = (inj.injury_status || 'OUT').toUpperCase().trim();
+    let displayStatus = 'OUT';
+    let statusClass = 'status-out';
 
-    // Abbreviate QUESTIONABLE to QUES
-    let displayStatus = rawStatus;
-    if (displayStatus === 'QUESTIONABLE') {
+    if (rawStatus === 'QUESTIONABLE' || rawStatus === 'QUES' || rawStatus.includes('QUES')) {
       displayStatus = 'QUES';
-    } else if (displayStatus === 'INJURED RESERVE') {
+      statusClass = 'status-ques';
+    } else if (rawStatus === 'DOUBTFUL' || rawStatus === 'DOUB' || rawStatus.includes('DOUB')) {
+      displayStatus = 'DOUB';
+      statusClass = 'status-doub';
+    } else if (rawStatus === 'INJURED RESERVE' || rawStatus === 'IR') {
       displayStatus = 'IR';
-    } else if (displayStatus === 'DOUBTFUL') {
-      displayStatus = 'DOUBT';
+      statusClass = 'status-out';
+    } else {
+      displayStatus = 'OUT';
+      statusClass = 'status-out';
     }
 
     // Border and progressbar always match the fantasy owner color
     const ownerColor = this.getOwnerColor(inj);
-
     const pts = Number(inj.points || 0);
-    const benchPrefix = this.getBenchPrefix(inj);
     const shortName = this.formatPlayerDisplayName(inj.player_name, inj.position, inj.nfl_team);
-    const mgrName = inj.manager_name || inj.fantasy_team_name || 'ROSTER';
-    const topTagText = this.escapeHtml(mgrName.toUpperCase());
+    const remaining = this.alertQueue ? this.alertQueue.length : 0;
+    const showQueue = remaining > 0 ? '' : 'display: none;';
 
     this.dom.highlightContainer.innerHTML = `
       <div class="spotlight-pill live-injury" style="border-color: ${ownerColor} !important; --hl-glow-color: ${ownerColor};">
@@ -1109,19 +1084,11 @@ class NFLGameHUD {
           <span class="spotlight-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${ownerColor}; color: #ffffff; font-weight: 800;">${inj.position || 'NFL'}</span>
         </div>
 
-        <div class="spotlight-info">
-          <span class="spotlight-top-tag" style="color: #ffffff !important; font-weight: 700;">
-            ${topTagText}
-          </span>
-          <span class="spotlight-player-name">${this.escapeHtml(shortName)}</span>
-        </div>
+        <span class="spotlight-player-name">${this.escapeHtml(shortName)}</span>
 
-        <div class="spotlight-queue-slot" style="min-width: 50px;">
+        <div class="spotlight-right-items">
+          <span class="spotlight-queue-badge" id="spotlight-queue-badge" style="${showQueue}">+${remaining} IN QUEUE</span>
           <span class="injury-status-badge ${statusClass}">${this.escapeHtml(displayStatus)}</span>
-        </div>
-
-        <div class="spotlight-score-badge">
-          ${benchPrefix}
           <span class="spotlight-pts-value" style="color: #ffffff; font-weight: 600;">
             <span class="pts-number">${pts.toFixed(1)}</span><span class="pts-sub" style="font-size: 9px; color: #ffffff; opacity: 0.85;">FPTS</span>
           </span>

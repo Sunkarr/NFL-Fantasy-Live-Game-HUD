@@ -605,29 +605,56 @@ html, body {
 
 .spotlight-player-name {
   font-family: var(--font-family);
-  font-size: clamp(11px, 0.9vw, 13px);
-  font-weight: 600;
+  font-size: clamp(12.5px, 0.95vw, 14px);
+  font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+/* Single-Line Right Items Group (Queue, Bench, Rank, Injury Type, Points) */
+.spotlight-right-items {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Positional Rank Badge for Player Card (e.g. 👑 #1, #2) */
+.spotlight-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  font-weight: 800;
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Dedicated Queue Counter Slot between Player Info & Score Badge */
 .spotlight-queue-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  min-width: 58px;
-  height: 100%;
+  display: none;
 }
 
 /* Queue Count Indicator (Shows how many more highlights are pending) */
 .spotlight-queue-badge {
   font-family: var(--font-family);
   font-variant-numeric: tabular-nums;
-  font-size: clamp(8px, 0.65vw, 9.5px);
+  font-size: 9.5px;
   font-weight: 700;
   color: #f1f5f9;
   letter-spacing: 0.03em;
@@ -638,6 +665,7 @@ html, body {
   white-space: nowrap;
   animation: pulse-queue 1.5s infinite ease-in-out;
   transition: opacity 0.2s ease;
+  flex-shrink: 0;
 }
 
 .spotlight-score-badge {
@@ -908,14 +936,19 @@ html, body {
 }
 
 .injury-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-family);
   font-size: clamp(9.5px, 0.8vw, 11px);
-  font-weight: 700;
-  padding: 2px 7px;
+  font-weight: 800;
+  padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .injury-status-badge.status-out,
@@ -926,12 +959,19 @@ html, body {
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
 }
 
-.injury-status-badge.status-ques,
-.injury-status-badge.status-doubtful {
+.injury-status-badge.status-ques {
   background: rgba(245, 158, 11, 0.35);
   border: 1.5px solid #f59e0b;
   color: #fef3c7;
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.55);
+}
+
+.injury-status-badge.status-doub,
+.injury-status-badge.status-doubtful {
+  background: rgba(249, 115, 22, 0.35);
+  border: 1.5px solid #f97316;
+  color: #ffedd5;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.55);
 }
 
 .spotlight-injury-detail {

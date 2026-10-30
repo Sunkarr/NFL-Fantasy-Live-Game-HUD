@@ -668,6 +668,8 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
     }
 
     .preview-score-badge {
@@ -1047,20 +1049,14 @@
 
             <!-- Right Highlight / Spotlight Pill -->
             <div class="mini-highlight-container">
-              <div id="mini-spotlight-pill" class="mini-spotlight-pill">
+              <div id="mini-spotlight-pill" class="mini-spotlight-pill" style="display: flex; align-items: center; gap: 6px; padding: 0 8px;">
                 <div class="mini-spotlight-avatar-wrap">
                   <img src="https://sleepercdn.com/content/nfl/players/4984.jpg" class="mini-spotlight-avatar" />
                   <span class="mini-pos-badge">QB</span>
                 </div>
-                <div class="mini-spotlight-info">
-                  <div class="mini-spotlight-top">
-                    <span style="color: #00f0ff; font-weight: 800;">JOSH ALLEN</span>
-                    <span style="font-size: 8px; color: var(--text-dim);">· BUF</span>
-                  </div>
-                  <div class="mini-spotlight-name">Touchdown Pass (+6.4)</div>
-                </div>
-                <div class="mini-score-badge">
-                  <span class="mini-pts" style="color: #00f0ff;">+6.4</span>
+                <span style="flex: 1; min-width: 0; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">J. Allen</span>
+                <div class="mini-score-badge" style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+                  <span class="mini-pts" style="color: #00f0ff; border: 1px solid #00f0ff; background: rgba(0, 240, 255, 0.2); padding: 1px 4px; border-radius: 3px; font-size: 10px; font-weight: 700;">+6.4 FPTS</span>
                 </div>
                 <div class="mini-timer-bar"></div>
               </div>
@@ -1853,14 +1849,9 @@
             <span class="preview-pos-badge" style="background: rgba(0, 0, 0, 0.85); border: 1.5px solid ${accentColor}; color: #ffffff; font-weight: 800;">${pos}</span>
           </div>
 
-          <div class="preview-info">
-            <span class="preview-top-tag" style="color: #ffffff; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
-              ${header.emoji} ${header.label}
-            </span>
-            <span class="preview-player-name">${formatHighlightDisplayName(playerName, pos, nflTeam)}</span>
-          </div>
+          <span class="preview-player-name">${formatHighlightDisplayName(playerName, pos, nflTeam)}</span>
 
-          <div class="preview-score-badge">
+          <div class="preview-score-badge" style="margin-left: auto;">
             ${benchPrefix}
             <span class="preview-pts-value" style="color: #ffffff !important; border: 1.5px solid ${accentColor} !important; background: ${hexToRgba(accentColor, 0.25)} !important; box-shadow: 0 0 12px ${hexToRgba(accentColor, 0.45)} !important; font-weight: 900; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);">
               <span>+${deltaPoints.toFixed(1)}</span><span style="font-size: 8.5px; color: #ffffff !important; opacity: 0.9;">FPTS</span>
